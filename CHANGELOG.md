@@ -5,6 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **TickFlow as default data source.** `pyproject.toml` now declares
+  `tickflow[all]` + `curl_cffi` + `polars` (previously only in
+  `scripts/requirements.txt`, so `uv` never installed tickflow and the
+  name-resolution cascade silently fell through to akshare). The cascade in
+  `resolve_tickers.py` already prefers TickFlow — it now actually resolves.
+
+### Changed
+- **Python environment preflight (Stage 0).** `setupStage` runs
+  `uv sync --project <root>` once before any data collection, so the `.venv`
+  (tickflow/akshare/scipy/numba/...) is created/synced up front — every later
+  `uv run --project <root> python ...` is instant and deterministic, and env
+  failures surface at setup instead of mid-pipeline. Idempotent (<1s after the
+  first run), gated on `pyproject.toml` so hermetic tests skip it, non-fatal.
+- **Script invocations pin the package env.** `buildScriptArgs` + agent prompts
+  now use `uv run --project ${EXTENSION_ROOT} python ...`, so agents running
+  from the reports dir use the package's `.venv`/`uv.lock`/`.python-version`
+  instead of an ephemeral env lacking tickflow.
+- `requires-python = ">=3.12,<3.14"` + `.python-version` (3.12): pandas-ta needs
+  >=3.12 and numba (its transitive dep) needs <3.14, so 3.12 is the sweet spot.
+  Fixes the universal-lock resolution failure.
+
+### Fixed
+- **`TICKFLOW_API_KEY` now reaches spawned agents.** pi can be launched from a
+  GUI entry that never sources `~/.bashrc`; `extension.ts` now reads the named
+  data-source keys from `~/.bashrc` and exports them into `process.env` so
+  spawned `pi` subprocesses + `uv run` children see the key (the 2026-07-05
+  Stage-1 "akshare unavailable -> ETF proxy" root cause).
+
 ## [0.1.1] - 2026-07-05
 
 ### Fixed

@@ -67,9 +67,11 @@ describe("resolveScriptPath + buildScriptArgs (pure)", () => {
 		expect(argv).not.toBeNull();
 		expect(argv![0]).toBe("uv");
 		expect(argv![1]).toBe("run");
-		expect(argv![2]).toBe("python");
-		expect(argv![3]).toBe(join(ROOT, "scripts", "compute_scores.py"));
-		expect(argv!.slice(4)).toEqual(["--metrics", "m.json"]);
+		expect(argv![2]).toBe("--project");
+		expect(argv![3]).toBe(ROOT);
+		expect(argv![4]).toBe("python");
+		expect(argv![5]).toBe(join(ROOT, "scripts", "compute_scores.py"));
+		expect(argv!.slice(6)).toEqual(["--metrics", "m.json"]);
 	});
 });
 

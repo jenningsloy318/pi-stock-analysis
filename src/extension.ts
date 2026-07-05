@@ -16,6 +16,7 @@ import { Type } from "typebox";
 import { mkdirSync, writeFileSync, existsSync, readFileSync } from "node:fs";
 import { join, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { homedir } from "node:os";
 import { runWorkflow } from "./workflow.ts";
 import { STOCK_ANALYSIS_WORKFLOW } from "./stages/index.ts";
 import { normalizeAshTicker, validateParams, defaultTopIndustry, clampRange } from "./helpers.ts";
@@ -66,6 +67,30 @@ export const EXTENSION_ROOT = resolvePackageRoot(import.meta.url);
 // (env: { ...process.env }) AND in-process session agents' bash commands expand
 // ${EXTENSION_ROOT}. Agent .md files + prompts reference this path.
 process.env.EXTENSION_ROOT = EXTENSION_ROOT;
+
+// ─── Data-source API keys (TICKFLOW_API_KEY etc.) ───────────────────────
+// pi may be launched from a GUI/desktop entry that never sourced ~/.bashrc,
+// so spawned `pi` subprocesses + `uv run` children wouldn't see the key and
+// the TickFlow-primary resolution cascade would silently fall through to
+// akshare (the 2026-07-05 Stage-1 "akshare unavailable → ETF proxy" gap).
+// Read ONLY the named keys from ~/.bashrc (regex, never source the file).
+ensureDataSourceKeys(["TICKFLOW_API_KEY"]);
+
+function ensureDataSourceKeys(keys: string[]): void {
+	let bashrc: string;
+	try {
+		bashrc = readFileSync(join(homedir(), ".bashrc"), "utf8");
+	} catch {
+		return; // no ~/.bashrc — keys may already be in env
+	}
+	for (const key of keys) {
+		if (process.env[key]) continue;
+		const escKey = key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+		const re = new RegExp(`^\\s*(?:export\\s+)?${escKey}=["']?([^"'\n#]+)["']?`, "m");
+		const m = bashrc.match(re);
+		if (m?.[1]) process.env[key] = m[1].trim();
+	}
+}
 
 // ─── State initialization (Stage 0 setup) ───────────────────────────────────
 

@@ -39,7 +39,7 @@ export function runHeader(state: StockAnalysisState): string {
 	lines.push(`- topIndustry=${state.topIndustry}, totalCompany=${state.totalCompany}, topPrice=${state.topPrice}, minHeadroom=${state.minHeadroom}, days=${state.days}`);
 	lines.push("");
 	lines.push(`## Resources (package root: ${state.extensionRoot})`);
-	lines.push(`- Scripts:   ${state.extensionRoot}/scripts/   (invoke via: uv run python ${state.extensionRoot}/scripts/<name>.py ...)`);
+	lines.push(`- Scripts:   ${state.extensionRoot}/scripts/   (invoke via: uv run --project ${state.extensionRoot} python ${state.extensionRoot}/scripts/<name>.py ...)`);
 	lines.push(`- References: ${state.extensionRoot}/references/`);
 	lines.push(`- Templates:  ${state.extensionRoot}/templates/`);
 	lines.push(`- Schemas:    ${state.extensionRoot}/schemas/`);

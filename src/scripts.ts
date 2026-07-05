@@ -57,11 +57,15 @@ export function resolveScriptPath(name: string, root: string): string | null {
 }
 
 /** Build the full argv for a script invocation (unit-testable). Element 0 is
- *  the executable (`uv`), so callers can pass it straight to child_process. */
+ *  the executable (`uv`), so callers can pass it straight to child_process.
+ *  `--project <root>` pins uv to THIS package's pyproject.toml + uv.lock +
+ *  .python-version + .venv regardless of the caller's cwd (agents run from the
+ *  reports dir, so without --project uv would spin up an ephemeral env lacking
+ *  tickflow/akshare). */
 export function buildScriptArgs(name: string, args: string[] = [], root: string): string[] | null {
 	const scriptPath = resolveScriptPath(name, root);
 	if (!scriptPath) return null;
-	return ["uv", "run", "python", scriptPath, ...args];
+	return ["uv", "run", "--project", root, "python", scriptPath, ...args];
 }
 
 /** Run a python script via `uv run python`. Never throws. */
@@ -162,5 +166,78 @@ export async function runScriptCall(call: ScriptCall, fallback: { root: string; 
 		timeoutMs: call.timeoutMs,
 		sink: fallback.sink,
 		signal: fallback.signal,
+	});
+}
+
+// ─── Preflight: ensure the Python venv exists + is synced ─────────────────
+
+export interface EnsureEnvResult {
+	ok: boolean;
+	stdout: string;
+	stderr: string;
+	error?: string;
+}
+
+/** First-install can be heavy (scipy/numba/polars/akshare); allow 20 min. */
+const ENV_SYNC_TIMEOUT_MS = 20 * 60 * 1000;
+
+/** Preflight: create/sync the package's `.venv` from pyproject.toml + uv.lock +
+ *  .python-version via `uv sync --project root`. Run ONCE at Stage 0 so every
+ *  later `uv run --project root python …` is instant and deterministic, and so
+ *  setup failures surface immediately instead of mid-pipeline.
+ *
+ *  Idempotent: `uv sync` is a no-op once the venv matches the lock, so repeat
+ *  runs cost <1s. Streams uv's stderr line-by-line to the sink for live logs. */
+export async function ensurePythonEnv(
+	root: string,
+	opts: { signal?: AbortSignal; sink?: { log: (message: string) => void } } = {},
+): Promise<EnsureEnvResult> {
+	return new Promise<EnsureEnvResult>((resolve) => {
+		const child = spawn("uv", ["sync", "--project", root], {
+			cwd: root,
+			stdio: ["ignore", "pipe", "pipe"],
+			env: { ...process.env },
+			windowsHide: true,
+		});
+		let stdout = "";
+		let stderr = "";
+		let stderrLine = "";
+		let timedOut = false;
+
+		const onAbort = () => { try { child.kill("SIGTERM"); } catch { /* ignore */ } };
+		opts.signal?.addEventListener("abort", onAbort, { once: true });
+		const timer = setTimeout(() => {
+			timedOut = true;
+			try { child.kill("SIGTERM"); } catch { /* ignore */ }
+		}, ENV_SYNC_TIMEOUT_MS);
+		const finish = (r: EnsureEnvResult) => {
+			opts.signal?.removeEventListener("abort", onAbort);
+			clearTimeout(timer);
+			resolve(r);
+		};
+
+		child.stdout.on("data", (c: Buffer) => { stdout += c.toString("utf8"); });
+		child.stderr.on("data", (c: Buffer) => {
+			stderr += c.toString("utf8");
+			if (opts.sink) {
+				stderrLine += c.toString("utf8");
+				let nl: number;
+				while ((nl = stderrLine.indexOf("\n")) >= 0) {
+					const line = stderrLine.slice(0, nl).trim();
+					stderrLine = stderrLine.slice(nl + 1);
+					if (line) opts.sink.log(`  [uv sync] ${line}`);
+				}
+			}
+		});
+		child.on("error", (err) => {
+			finish({ ok: false, stdout, stderr, error: `failed to spawn uv: ${err.message}. Is 'uv' on PATH?` });
+		});
+		child.on("close", (code) => {
+			if (opts.signal?.aborted) return finish({ ok: false, stdout, stderr, error: "aborted" });
+			if (timedOut) return finish({ ok: false, stdout, stderr, error: `uv sync timed out after ${Math.round(ENV_SYNC_TIMEOUT_MS / 1000)}s` });
+			if (code === 0) return finish({ ok: true, stdout, stderr });
+			const tail = stderr.trim().split("\n").slice(-6).join(" | ");
+			finish({ ok: false, stdout, stderr, error: `uv sync exit ${code}${tail ? `: ${tail}` : ""}` });
+		});
 	});
 }

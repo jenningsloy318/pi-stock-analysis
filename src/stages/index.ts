@@ -21,6 +21,8 @@
  *     walk:     0→1→[gate 1.5]→walk(roadmap-walker)→[map 5-15 top 3-5]→16→…→19
  */
 
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import {
 	task, sequence, branch, choose, parallel, retry, gate, map, noop,
 	writerTask, gateValidator,
@@ -32,6 +34,7 @@ import {
 	roadmapWalkerBody, perCompanyAnalystBody, scorerBody, adversarialBody,
 	judgePanelBody, reportWriterBody, bestPicksBody,
 } from "../prompts.ts";
+import { ensurePythonEnv } from "../scripts.ts";
 
 // ─── Predicates ─────────────────────────────────────────────────────────────
 
@@ -54,6 +57,16 @@ const setupStage = task({
 	fatal: true,
 	async run(s, ctx) {
 		ctx.log(`Setup: mode=${s.mode} runId=${s.runId} tickers=[${s.tickers.join(",")}]`);
+		// Preflight: create/sync the package .venv (tickflow, akshare, scipy, …)
+		// via `uv sync --project root` ONCE so every later `uv run --project root
+		// python …` is instant + deterministic. Heavy on first run (minutes);
+		// <1s after. Gated on pyproject.toml so hermetic tests (fake root) skip it;
+		// non-fatal on failure (scripts surface per-script errors if env is broken).
+		if (existsSync(join(s.extensionRoot, "pyproject.toml"))) {
+			ctx.log("Setup: ensuring Python environment (uv sync — first run may take several minutes)…");
+			const env = await ensurePythonEnv(s.extensionRoot, { signal: ctx.signal, sink: { log: (m) => ctx.log(m) } });
+			ctx.log(env.ok ? "Setup: Python environment ready ✓" : `Setup: ⚠️ env sync failed (non-fatal, scripts may error): ${env.error}`);
+		}
 		s.tracking.completed.push("stage-0");
 		return { runId: s.runId, mode: s.mode };
 	},
