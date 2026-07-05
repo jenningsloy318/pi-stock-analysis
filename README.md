@@ -15,16 +15,25 @@ external workflow engine.**
 ## Install
 
 ```bash
-pi package add pi-stock-analysis
-# or, from a local checkout:
+# from GitHub (recommended):
+pi install git:github.com/jenningsloy318/pi-stock-analysis
+# …or pin a tag / commit:
+pi install git:github.com/jenningsloy318/pi-stock-analysis@v0.1.2
+# …or from npm:
+pi install npm:pi-stock-analysis
+# …or from a local checkout (dev):
 pi -e /path/to/pi-stock-analysis
 ```
 
 ### Prerequisites
 
 - Node ≥ 22.19
-- **`uv` on PATH** (the deterministic Python scripts run via `uv run`)
-- Python ≥ 3.11 (handled automatically by `uv` against the bundled `pyproject.toml` + `uv.lock`)
+- **`uv` on PATH** — the deterministic Python scripts run via `uv run`, and the
+  first pipeline run executes a Stage-0 preflight (`uv sync --project <root>`)
+  that creates the package `.venv` (akshare / tickflow / scipy / numba / …).
+  First-run sync can take several minutes; subsequent runs are instant.
+- Python 3.12 (pinned via the bundled `.python-version`; `uv` fetches it
+  automatically against `pyproject.toml` + `uv.lock`).
 
 ## Use
 
