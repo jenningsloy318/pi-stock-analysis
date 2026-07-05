@@ -15,7 +15,9 @@
 
 import type { StockAnalysisState, StageContext } from "./types.ts";
 
-const ROOT_TOKEN = "${EXTENSION_ROOT}";
+// EXTENSION_ROOT is resolved in extension.ts and threaded via state.extensionRoot
+// (the actual absolute path), AND exported into the spawned agent's env so
+// \${EXTENSION_ROOT} in agent .md files / bash commands resolves too.
 
 /** The shared preamble every agent sees: who they are, where things live,
  *  and the run's identity. Kept tight to preserve the agent's context budget. */
@@ -31,12 +33,13 @@ export function runHeader(state: StockAnalysisState): string {
 	if (state.theme) lines.push(`- Theme: ${state.theme}`);
 	lines.push(`- topIndustry=${state.topIndustry}, totalCompany=${state.totalCompany}, topPrice=${state.topPrice}, minHeadroom=${state.minHeadroom}, days=${state.days}`);
 	lines.push("");
-	lines.push("## Resources (resolve ${EXTENSION_ROOT} to the package root)");
-	lines.push(`- Scripts:   ${ROOT_TOKEN}/scripts/   (invoke via: uv run python ${ROOT_TOKEN}/scripts/<name>.py ...)`);
-	lines.push(`- References: ${ROOT_TOKEN}/references/`);
-	lines.push(`- Templates:  ${ROOT_TOKEN}/templates/`);
-	lines.push(`- Schemas:    ${ROOT_TOKEN}/schemas/`);
-	lines.push(`- Assets:     ${ROOT_TOKEN}/assets/`);
+	lines.push(`## Resources (package root: ${state.extensionRoot})`);
+	lines.push(`- Scripts:   ${state.extensionRoot}/scripts/   (invoke via: uv run python ${state.extensionRoot}/scripts/<name>.py ...)`);
+	lines.push(`- References: ${state.extensionRoot}/references/`);
+	lines.push(`- Templates:  ${state.extensionRoot}/templates/`);
+	lines.push(`- Schemas:    ${state.extensionRoot}/schemas/`);
+	lines.push(`- Assets:     ${state.extensionRoot}/assets/`);
+	lines.push(`(EXTENSION_ROOT=${state.extensionRoot} is also exported in your shell env; \${EXTENSION_ROOT} expands in bash.)`);
 	lines.push("");
 	lines.push("## Rules (binding)");
 	lines.push("- ALL reports MUST be written in Chinese (中文). Technical terms in English.");

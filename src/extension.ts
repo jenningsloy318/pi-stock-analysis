@@ -62,6 +62,11 @@ export function resolvePackageRoot(startUrl: string): string {
 
 export const EXTENSION_ROOT = resolvePackageRoot(import.meta.url);
 
+// Export into the process env so spawned `pi` subprocesses inherit it
+// (env: { ...process.env }) AND in-process session agents' bash commands expand
+// ${EXTENSION_ROOT}. Agent .md files + prompts reference this path.
+process.env.EXTENSION_ROOT = EXTENSION_ROOT;
+
 // ─── State initialization (Stage 0 setup) ───────────────────────────────────
 
 /** Build the initial StockAnalysisState from tool params (Stage 0 setup). */

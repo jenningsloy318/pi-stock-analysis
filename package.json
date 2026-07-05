@@ -6,6 +6,10 @@
   "type": "module",
   "license": "MIT",
   "author": "Jennings Liu",
+  "repository": { "type": "git", "url": "git+https://github.com/jenningsloy318/pi-stock-analysis.git" },
+  "homepage": "https://github.com/jenningsloy318/pi-stock-analysis#readme",
+  "bugs": { "url": "https://github.com/jenningsloy318/pi-stock-analysis/issues" },
+  "publishConfig": { "access": "public" },
   "keywords": [
     "pi",
     "pi-package",
