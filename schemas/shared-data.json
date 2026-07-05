@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "stock-analysis/schemas/shared-data.json",
+  "title": "SharedDataResult",
+  "description": "Return from data-collector agent (Stage 1). Confirms macro data, market breadth, sector RS, and theme performance were fetched successfully.",
+  "type": "object",
+  "required": ["status", "files"],
+  "properties": {
+    "status": { "type": "string", "enum": ["ok", "partial", "failed"] },
+    "files": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "List of files written to output_dir."
+    },
+    "notes": { "type": "string", "description": "Any warnings or partial-failure details." }
+  }
+}

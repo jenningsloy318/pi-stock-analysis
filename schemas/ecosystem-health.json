@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "stock-analysis/schemas/ecosystem-health.json",
+  "title": "EcosystemHealth",
+  "description": "Supply chain ecosystem health output from fetch_supply_chain_ecosystem.py. Used in screening (±10% score adj) and Stage 8 deep analysis. Measures upstream supplier and downstream customer financial performance.",
+  "type": "object",
+  "required": ["ticker", "ecosystem_momentum"],
+  "properties": {
+    "ticker": { "type": "string" },
+    "upstream": {
+      "type": "object",
+      "properties": {
+        "companies": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "ticker": { "type": "string" },
+              "name": { "type": "string" },
+              "relationship": { "type": "string" },
+              "rev_growth_yoy": { "type": "number" },
+              "gross_margin": { "type": "number" },
+              "margin_trend": { "type": "string", "enum": ["expanding", "contracting", "stable", "unknown"] },
+              "stock_6m_return": { "type": "number" },
+              "health_score": { "type": "number", "description": "1-10 individual company health." }
+            }
+          }
+        },
+        "health_score": { "type": "number", "description": "1-10 aggregate upstream health." },
+        "trend": { "type": "string", "enum": ["positive", "negative", "mixed", "unknown"] }
+      }
+    },
+    "downstream": {
+      "type": "object",
+      "properties": {
+        "companies": { "type": "array", "items": { "type": "object" } },
+        "health_score": { "type": "number", "description": "1-10 aggregate downstream health." },
+        "trend": { "type": "string", "enum": ["positive", "negative", "mixed", "unknown"] }
+      }
+    },
+    "ecosystem_momentum": {
+      "type": "object",
+      "required": ["score", "direction"],
+      "properties": {
+        "score": { "type": "number", "description": "1-10 composite ecosystem score." },
+        "direction": { "type": "string", "enum": ["positive", "negative", "mixed", "divergent"] },
+        "convergence": { "type": "boolean", "description": "True if upstream+downstream agree on direction." }
+      }
+    },
+    "propagation_risks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "direction": { "type": "string", "enum": ["upstream", "downstream"] },
+          "company": { "type": "string" },
+          "risk": { "type": "string" },
+          "severity": { "type": "string", "enum": ["HIGH", "MEDIUM", "LOW"] }
+        }
+      }
+    },
+    "chain_health_adjustment": { "type": "number", "description": "±0.10 screening bonus/penalty." },
+    "data_quality": {
+      "type": "object",
+      "properties": {
+        "upstream_coverage": { "type": "number" },
+        "downstream_coverage": { "type": "number" },
+        "confidence": { "type": "string", "enum": ["high", "medium", "low"] }
+      }
+    }
+  }
+}

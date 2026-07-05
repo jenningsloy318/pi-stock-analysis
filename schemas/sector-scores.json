@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "stock-analysis/schemas/sector-scores.json",
+  "title": "SectorScores",
+  "description": "Return from sector-screener agent (Stage 2). Ranked sub-industries with composite scores.",
+  "type": "object",
+  "required": ["sub_industries"],
+  "properties": {
+    "sub_industries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["code", "score"],
+        "properties": {
+          "code": { "type": "string", "description": "GICS Level 4 sub-industry code." },
+          "name": { "type": "string", "description": "Sub-industry display name." },
+          "score": { "type": "number", "description": "Composite score 0-100 across 12 dimensions." },
+          "dim_breakdown": { "type": "object", "description": "Per-dimension scores (Growth, Profitability, Valuation, etc.)." }
+        }
+      }
+    }
+  }
+}

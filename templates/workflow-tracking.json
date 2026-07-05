@@ -1,0 +1,174 @@
+{
+  "$schema": "Stock Analysis Workflow Tracking",
+  "$description": "Per-run workflow state file. Created at workflow start, updated at every phase start/end. Location: ./reports/[RUN_ID]/workflow-tracking.json",
+
+  "run_id": {
+    "$type": "string",
+    "$description": "YYYYMMDDHHmm timestamp identifier for this run",
+    "$example": "202606241430"
+  },
+
+  "mode": {
+    "$type": "string",
+    "$description": "Workflow execution mode",
+    "$enum": ["pipeline", "screen", "analyze", "compare", "walk"]
+  },
+
+  "universe": {
+    "$type": "string",
+    "$description": "Listing-exchange filter",
+    "$enum": ["US", "CN", "ALL"]
+  },
+
+  "tickers": {
+    "$type": "array of strings",
+    "$description": "Target tickers (analyze/compare mode) or discovered companies (pipeline mode — populated after screening)",
+    "$example": ["AAPL", "NVDA", "MSFT"]
+  },
+
+  "theme": {
+    "$type": "string | null",
+    "$description": "Supply-chain walk theme (walk mode only)",
+    "$example": "AI infrastructure"
+  },
+
+  "startedAt": {
+    "$type": "string (ISO 8601, seconds precision)",
+    "$description": "Timestamp when the workflow was initialized",
+    "$example": "2026-06-24T14:30:25Z"
+  },
+
+  "completedAt": {
+    "$type": "string (ISO 8601, seconds precision) | null",
+    "$description": "Timestamp when the workflow finished (null if still running or failed)",
+    "$example": "2026-06-24T16:45:10Z"
+  },
+
+  "status": {
+    "$type": "string",
+    "$description": "Top-level workflow status",
+    "$enum": ["running", "completed", "partial", "failed"]
+  },
+
+  "phases": {
+    "$type": "array of Phase objects",
+    "$description": "Ordered list of workflow phases and their execution status. Updated at phase start and completion.",
+    "$example": [
+      { "id": 1, "name": "Shared Data", "status": "completed", "startedAt": "2026-06-24T14:30:25Z", "completedAt": "2026-06-24T14:32:10Z", "agents_spawned": 2, "agents_succeeded": 2, "agents_failed": 0, "result_summary": "ok — 12 files written" },
+      { "id": 2, "name": "Screening", "status": "in_progress", "startedAt": "2026-06-24T14:32:10Z", "completedAt": null, "agents_spawned": 3, "agents_succeeded": 1, "agents_failed": 0, "result_summary": null },
+      { "id": 3, "name": "Per-Company Analysis", "status": "pending", "startedAt": null, "completedAt": null, "agents_spawned": 0, "agents_succeeded": 0, "agents_failed": 0, "result_summary": null }
+    ],
+    "$item": {
+      "id": {
+        "$type": "number",
+        "$description": "Phase sequence number (1-indexed)"
+      },
+      "name": {
+        "$type": "string",
+        "$description": "Phase display name matching meta.phases[].title"
+      },
+      "status": {
+        "$type": "string",
+        "$enum": ["pending", "in_progress", "completed", "failed", "skipped"]
+      },
+      "startedAt": {
+        "$type": "string (ISO 8601, seconds precision) | null"
+      },
+      "completedAt": {
+        "$type": "string (ISO 8601, seconds precision) | null"
+      },
+      "agents_spawned": {
+        "$type": "number",
+        "$description": "Total agent() calls initiated in this phase"
+      },
+      "agents_succeeded": {
+        "$type": "number",
+        "$description": "Agents that returned non-null results"
+      },
+      "agents_failed": {
+        "$type": "number",
+        "$description": "Agents that returned null after all retries"
+      },
+      "result_summary": {
+        "$type": "string | null",
+        "$description": "Brief outcome (e.g., 'ok — 5 companies scored', 'partial — 2/5 failed', 'failed — validation gate blocked')"
+      }
+    }
+  },
+
+  "companies": {
+    "$type": "array of CompanyStatus objects",
+    "$description": "Per-company tracking for pipeline/analyze/compare modes. Populated after screening (pipeline) or at start (analyze/compare).",
+    "$item": {
+      "ticker": { "$type": "string" },
+      "rank": { "$type": "string", "$example": "001" },
+      "status": { "$type": "string", "$enum": ["pending", "in_progress", "completed", "partial", "failed"] },
+      "stages_completed": { "$type": "array of numbers", "$example": [5, 6, 7, 8, 9, 10, 11, 12, 13, 14] },
+      "stages_failed": { "$type": "array of numbers" },
+      "current_stage": { "$type": "number | null" },
+      "ecosystem_health": {
+        "$type": "object | null",
+        "$description": "Supply chain ecosystem health scores from Stage 8 (sc_ecosystem.json). Null if not yet computed.",
+        "upstream_health": { "$type": "number | null", "$description": "1-10 score of supplier financial performance" },
+        "downstream_health": { "$type": "number | null", "$description": "1-10 score of customer financial performance" },
+        "ecosystem_momentum": { "$type": "number | null", "$description": "1-10 composite ecosystem score" },
+        "direction": { "$type": "string | null", "$enum": [null, "positive", "negative", "mixed", "divergent"] },
+        "propagation_risks_count": { "$type": "number", "$description": "Count of HIGH-severity propagation risks" },
+        "chain_health_adj_applied": { "$type": "number | null", "$description": "±0.10 screening adjustment that was applied" }
+      },
+      "industry_trajectory": {
+        "$type": "object | null",
+        "$description": "Industry trajectory scores from Stage 7 (industry_trajectory.json). Null if not yet computed.",
+        "trajectory_score": { "$type": "number | null", "$description": "1-10 composite trajectory score" },
+        "trajectory_direction": { "$type": "string | null", "$enum": [null, "strong_improvement", "improving", "mixed", "deteriorating", "strong_deterioration"] },
+        "positive_signals": { "$type": "number", "$description": "Count of improving dimensions (0-6)" },
+        "negative_signals": { "$type": "number", "$description": "Count of deteriorating dimensions (0-6)" }
+      }
+    }
+  },
+
+  "reports": {
+    "$type": "array of ReportStatus objects",
+    "$description": "Per-report tracking for the Reports phase.",
+    "$item": {
+      "ticker": { "$type": "string" },
+      "horizon": { "$type": "string", "$enum": ["long", "mid", "short"] },
+      "status": { "$type": "string", "$enum": ["pending", "in_progress", "written", "partial", "failed"] },
+      "file_path": { "$type": "string | null" },
+      "iteration": { "$type": "number", "$description": "Which writer→critic→validate iteration produced this (1-3)" },
+      "validation_passed": { "$type": "boolean | null" },
+      "critic_quality": { "$type": "string | null", "$enum": [null, "PASS", "PASS_WITH_GAPS", "FAIL"] }
+    }
+  },
+
+  "validation_gates": {
+    "$type": "object",
+    "$description": "Status of each validation gate (true = passed, false = failed, null = not yet run)",
+    "data_freshness": { "$type": "boolean | null" },
+    "screening": { "$type": "boolean | null" },
+    "scoring": { "$type": "boolean | null" },
+    "reports": { "$type": "boolean | null" },
+    "best_picks": { "$type": "boolean | null" }
+  },
+
+  "metrics": {
+    "$type": "object",
+    "$description": "Execution metrics for observability",
+    "total_agents_spawned": { "$type": "number" },
+    "total_agents_succeeded": { "$type": "number" },
+    "total_agents_failed": { "$type": "number" },
+    "total_retries": { "$type": "number" },
+    "report_iterations": { "$type": "number", "$description": "How many write→critic→validate loops ran (1-3)" }
+  },
+
+  "errors": {
+    "$type": "array of Error objects",
+    "$description": "All errors encountered during execution",
+    "$item": {
+      "phase": { "$type": "string" },
+      "agent_label": { "$type": "string" },
+      "error": { "$type": "string" },
+      "fatal": { "$type": "boolean", "$description": "true if this error halted the workflow" }
+    }
+  }
+}

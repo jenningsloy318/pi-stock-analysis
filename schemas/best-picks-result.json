@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "stock-analysis/schemas/best-picks-result.json",
+  "title": "BestPicksResult",
+  "description": "Structured confirmation from equity-report-writer for HIGHLIGHTS_BEST_PICKS.md. Verifies required columns are present.",
+  "type": "object",
+  "required": ["status", "file_path", "companies_included"],
+  "properties": {
+    "status": { "type": "string", "enum": ["written", "failed"] },
+    "file_path": { "type": "string" },
+    "companies_included": { "type": "number", "description": "How many companies in the highlights table." },
+    "has_bear_case_column": { "type": "boolean" },
+    "has_panel_consensus_column": { "type": "boolean" },
+    "has_kill_switch": { "type": "boolean" },
+    "has_current_price": { "type": "boolean" },
+    "notes": { "type": "string" }
+  }
+}

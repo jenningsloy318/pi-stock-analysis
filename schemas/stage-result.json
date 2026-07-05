@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "stock-analysis/schemas/stage-result.json",
+  "title": "StageResult",
+  "description": "Return from any per-company analyst agent (Stages 5-15). Small structured summary confirming the stage completed.",
+  "type": "object",
+  "required": ["stage", "status"],
+  "properties": {
+    "stage": { "type": "number", "description": "Stage number (5-15)." },
+    "status": { "type": "string", "enum": ["ok", "partial", "failed", "skipped"] },
+    "files_written": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Files produced by this stage (relative to company_dir)."
+    },
+    "key_findings": { "type": "string", "description": "Top findings compressed to <100 tokens." },
+    "notes": { "type": "string" }
+  }
+}

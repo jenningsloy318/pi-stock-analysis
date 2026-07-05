@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "stock-analysis/schemas/validation.json",
+  "title": "ValidationResult",
+  "description": "Structured return from report-validator agent. Used at every validation gate (data-freshness, screening-completeness, score-consistency, report-quality, best-picks).",
+  "type": "object",
+  "required": ["pass", "reason"],
+  "properties": {
+    "pass": { "type": "boolean", "description": "True if the validation gate passed." },
+    "reason": { "type": "string", "description": "Human-readable explanation of pass/fail." },
+    "gates_failed": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "List of specific gate names that failed. Empty when pass==true."
+    }
+  }
+}

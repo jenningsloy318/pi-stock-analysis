@@ -1,0 +1,54 @@
+{
+  "_comment": "Per-company orchestrator status file schema. Written by company-orchestrator at {company_dir}/orchestrator-status.json. Read by team-lead for live progress aggregation. Single-writer pattern: only the owning company-orchestrator writes this file; team-lead is read-only for it.",
+  "_writer": "company-orchestrator (this company only)",
+  "_readers": ["team-lead", "human operator (debugging)"],
+  "_update_points": [
+    "After pre-flight checkpoint scan (initial state)",
+    "After each stage completes (stage status, updated_at)",
+    "At completion (status=completed|partial|failed, completed_at)"
+  ],
+
+  "ticker": "AAPL",
+  "rank": "001",
+  "team_name": "stock-analysis-202605281430",
+  "started_at": "2026-05-28T14:32:11Z",
+  "updated_at": "2026-05-28T14:48:03Z",
+  "completed_at": null,
+  "status": "running",
+  "_status_values": "running | completed | partial | failed",
+
+  "wave_state": {
+    "wave_1": "completed",
+    "wave_2": "running",
+    "wave_3": "pending",
+    "wave_4": "n/a",
+    "_values": "completed | running | pending | fail | n/a"
+  },
+
+  "stages": {
+    "5":  { "status": "completed", "started_at": "2026-05-28T14:32:11Z", "completed_at": "2026-05-28T14:38:02Z", "file": "stage5.md",  "checkpointed": false },
+    "6":  { "status": "running",   "started_at": "2026-05-28T14:42:00Z", "completed_at": null,                  "file": null,         "checkpointed": false },
+    "7":  { "status": "completed", "started_at": "2026-05-28T14:32:11Z", "completed_at": "2026-05-28T14:39:18Z", "file": "stage7.md",  "checkpointed": false },
+    "8":  { "status": "pending",   "started_at": null, "completed_at": null, "file": null, "checkpointed": false },
+    "9":  { "status": "completed", "started_at": "2026-05-28T14:32:11Z", "completed_at": "2026-05-28T14:36:55Z", "file": "stage9.md",  "checkpointed": false },
+    "10": { "status": "pending",   "started_at": null, "completed_at": null, "file": null, "checkpointed": false },
+    "11": { "status": "pending",   "started_at": null, "completed_at": null, "file": null, "checkpointed": false },
+    "12": { "status": "pending",   "started_at": null, "completed_at": null, "file": null, "checkpointed": false },
+    "13": { "status": "checkpointed", "started_at": null, "completed_at": null, "file": "stage13.md", "checkpointed": true },
+    "14": { "status": "pending",   "started_at": null, "completed_at": null, "file": null, "checkpointed": false },
+    "15": { "status": "n/a",       "started_at": null, "completed_at": null, "file": null, "checkpointed": false }
+  },
+
+  "verification": {
+    "wave_1": "ok",
+    "wave_2": null,
+    "wave_3": null,
+    "wave_4": null,
+    "_values": "ok | warn:{reason} | fail:{reason} | null (not yet run)"
+  },
+
+  "retries": {
+    "_comment": "Per-stage retry counter. Max 2 retries per stage before marking failed.",
+    "stage_8": 0
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "stock-analysis/schemas/sub-industry-deepdive.json",
+  "title": "SubIndustryDeepDive",
+  "description": "Return from sector-screener deep-dive mode (Stage 3). Porter's Five Forces, TAM, company universe for one sub-industry.",
+  "type": "object",
+  "required": ["code", "thesis", "companies"],
+  "properties": {
+    "code": { "type": "string", "description": "GICS Level 4 code." },
+    "thesis": { "type": "string", "description": "Investment thesis for this sub-industry." },
+    "porter_summary": { "type": "string", "description": "Porter's Five Forces one-line summary." },
+    "companies": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["ticker"],
+        "properties": {
+          "ticker": { "type": "string" },
+          "name": { "type": "string" },
+          "market_cap_usd": { "type": "number" },
+          "current_price": { "type": "number" }
+        }
+      }
+    }
+  }
+}

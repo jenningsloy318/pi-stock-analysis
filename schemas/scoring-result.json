@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "stock-analysis/schemas/scoring-result.json",
+  "title": "ScoringResult",
+  "description": "Return from scorer agent (Stage 16). Ranked companies with composite scores, conviction levels, and dimension breakdowns.",
+  "type": "object",
+  "required": ["companies"],
+  "properties": {
+    "companies": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["rank", "ticker", "composite_score"],
+        "properties": {
+          "rank": { "type": "string" },
+          "ticker": { "type": "string" },
+          "composite_score": { "type": "number", "description": "Final weighted conviction 1-10." },
+          "conviction": { "type": "string", "enum": ["HIGH", "MEDIUM", "LOW"] },
+          "dim_breakdown": { "type": "object", "description": "Per-dimension scores (13 dimensions)." }
+        }
+      }
+    },
+    "ranking_json_path": { "type": "string", "description": "Path to the written ranking.json file." }
+  }
+}

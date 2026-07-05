@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "stock-analysis/schemas/critic-finding.json",
+  "title": "CriticFinding",
+  "description": "Return from completeness critic (Phase 7b). Identifies missing modalities, ungrounded claims, and kill-switch falsifiability issues in a report.",
+  "type": "object",
+  "required": ["ticker", "horizon", "gaps", "kill_switch_check"],
+  "properties": {
+    "ticker": { "type": "string" },
+    "horizon": { "type": "string", "enum": ["long", "mid", "short"] },
+    "gaps": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["category", "severity"],
+        "properties": {
+          "category": { "type": "string", "description": "Gap type: 'modality', 'claim', or 'source'." },
+          "severity": { "type": "string", "enum": ["HIGH", "MEDIUM", "LOW"] },
+          "description": { "type": "string" },
+          "suggested_fix": { "type": "string" }
+        }
+      }
+    },
+    "kill_switch_check": {
+      "type": "object",
+      "required": ["present", "falsifiable"],
+      "properties": {
+        "present": { "type": "boolean" },
+        "falsifiable": { "type": "boolean", "description": "True if kill switch is measurable + has a clear trigger." },
+        "text": { "type": "string", "description": "Verbatim kill switch text from the report." },
+        "issues": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "overall_quality": { "type": "string", "enum": ["PASS", "PASS_WITH_GAPS", "FAIL"] }
+  }
+}

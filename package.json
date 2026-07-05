@@ -1,0 +1,64 @@
+{
+  "name": "@jenningsloy318/pi-stock-analysis",
+  "version": "0.1.0",
+  "description": "Self-contained pi control-flow workflow extension for unified equity research (5 modes, 19 stages). Screens GICS sub-industries → deep-dives companies → scores → adversarial verify → judge panel → 3-horizon reports → best picks. Spawns specialist pi subagents; deterministic calculations run via the verbatim Python scripts.",
+  "private": false,
+  "type": "module",
+  "license": "MIT",
+  "author": "Jennings Liu",
+  "keywords": [
+    "pi",
+    "pi-package",
+    "pi-extension",
+    "stock-analysis",
+    "equity-research",
+    "workflow",
+    "pipeline"
+  ],
+  "exports": {
+    "./extension": "./src/extension.ts",
+    "./nodes": "./src/nodes.ts",
+    "./workflow": "./src/workflow.ts",
+    "./stages": "./src/stages/index.ts",
+    "./args": "./src/args.ts",
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "files": [
+    "src",
+    "agents",
+    "skills",
+    "scripts",
+    "references",
+    "templates",
+    "schemas",
+    "assets",
+    "pyproject.toml",
+    "uv.lock",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "pi": {
+    "extensions": ["./src/extension.ts"],
+    "skills": ["./skills/stock-analysis"]
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*",
+    "typebox": "*"
+  },
+  "devDependencies": {
+    "@earendil-works/pi-coding-agent": "*",
+    "@types/node": "^22.0.0",
+    "typebox": "*",
+    "typescript": "^5.4",
+    "vitest": "^3.0"
+  },
+  "engines": {
+    "node": ">=22.19.0"
+  }
+}

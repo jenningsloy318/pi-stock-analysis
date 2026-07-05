@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "stock-analysis/schemas/company-orchestrator-result.json",
+  "title": "CompanyOrchestratorResult",
+  "description": "Return from per-company deep-dive pipeline (Stages 5-15). Summarizes which stages completed/failed for one company.",
+  "type": "object",
+  "required": ["ticker", "status", "stages_completed"],
+  "properties": {
+    "ticker": { "type": "string" },
+    "rank": { "type": "string", "description": "Zero-padded rank (001, 002, ...)." },
+    "status": { "type": "string", "enum": ["completed", "partial", "failed"] },
+    "stages_completed": { "type": "array", "items": { "type": "number" } },
+    "stages_failed": { "type": "array", "items": { "type": "number" } },
+    "key_findings": { "type": "string", "description": "Top 3-5 findings compressed to <100 tokens." },
+    "company_dir": { "type": "string", "description": "Path to this company's output directory." }
+  }
+}

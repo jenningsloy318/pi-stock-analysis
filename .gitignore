@@ -1,0 +1,10 @@
+node_modules/
+dist/
+*.tsbuildinfo
+.vitest-cache/
+reports/
+.stock-analysis-logs/
+__pycache__/
+.venv/
+.ruff_cache/
+.super-dev-logs/

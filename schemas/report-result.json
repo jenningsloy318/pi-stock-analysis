@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "stock-analysis/schemas/report-result.json",
+  "title": "ReportResult",
+  "description": "Structured confirmation from equity-report-writer agent (Phase 7). Confirms the report was written and reports key metadata. Prevents silent null-return failures.",
+  "type": "object",
+  "required": ["ticker", "horizon", "status", "file_path"],
+  "properties": {
+    "ticker": { "type": "string" },
+    "horizon": { "type": "string", "enum": ["long", "mid", "short"] },
+    "status": { "type": "string", "enum": ["written", "partial", "failed"] },
+    "file_path": { "type": "string", "description": "Path of the written .md report file." },
+    "sections_written": { "type": "number", "description": "Count of major sections populated (max 24)." },
+    "sections_total": { "type": "number", "description": "Total template sections (24)." },
+    "missing_sections": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Section names that could not be populated."
+    },
+    "conviction_score": { "type": "number", "description": "Final composite 1-10 from scores.json." },
+    "rating": { "type": "string", "description": "Strong Buy / Buy / Hold / Sell / Strong Sell." },
+    "kill_switch": { "type": "string", "description": "Verbatim kill switch text from the report." },
+    "validation_passed": { "type": "boolean", "description": "Did validate_report.py pass?" },
+    "validation_errors": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Gate failures if validation_passed=false."
+    },
+    "notes": { "type": "string", "description": "Issues or warnings during generation." }
+  }
+}

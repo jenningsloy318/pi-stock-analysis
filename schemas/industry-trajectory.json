@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "stock-analysis/schemas/industry-trajectory.json",
+  "title": "IndustryTrajectory",
+  "description": "Industry trajectory output from compute_industry_trajectory.py. Measures whether a sector/sub-industry is getting better or worse across 6 dimensions: revenue acceleration, margin direction, RS momentum, fund flows, valuation change, capital cycle.",
+  "type": "object",
+  "required": ["trajectory_score", "trajectory_direction"],
+  "properties": {
+    "etf": { "type": "string", "description": "ETF ticker used as industry proxy." },
+    "gics_code": { "type": "string", "description": "GICS Level 4 code if provided." },
+    "trajectory_score": { "type": "number", "description": "Composite trajectory 1-10." },
+    "trajectory_direction": {
+      "type": "string",
+      "enum": ["strong_improvement", "improving", "mixed", "deteriorating", "strong_deterioration", "unknown"],
+      "description": "Overall directional assessment of industry health trend."
+    },
+    "positive_signals": { "type": "number", "description": "Count of dimensions signaling improvement." },
+    "negative_signals": { "type": "number", "description": "Count of dimensions signaling deterioration." },
+    "dimensions": {
+      "type": "object",
+      "description": "Per-dimension breakdown.",
+      "properties": {
+        "revenue_acceleration": {
+          "type": "object",
+          "properties": {
+            "score": { "type": "number" },
+            "acceleration": { "type": "number", "description": "Recent 6M return minus prior 6M return." },
+            "direction": { "type": "string", "enum": ["accelerating", "decelerating", "stable"] }
+          }
+        },
+        "margin_direction": {
+          "type": "object",
+          "properties": {
+            "score": { "type": "number" },
+            "earnings_growth_implied": { "type": "number" },
+            "direction": { "type": "string", "enum": ["expanding", "contracting", "stable", "unknown"] }
+          }
+        },
+        "rs_momentum": {
+          "type": "object",
+          "properties": {
+            "score": { "type": "number" },
+            "momentum": { "type": "number" },
+            "direction": { "type": "string", "enum": ["improving", "deteriorating", "flat"] }
+          }
+        },
+        "fund_flows": {
+          "type": "object",
+          "properties": {
+            "score": { "type": "number" },
+            "volume_change_1m": { "type": "number" },
+            "price_direction_1m": { "type": "number" },
+            "direction": { "type": "string", "enum": ["strong_inflow", "accumulation", "quiet_accumulation", "neutral", "declining", "distribution"] }
+          }
+        },
+        "valuation_change": {
+          "type": "object",
+          "properties": {
+            "score": { "type": "number" },
+            "pe_change_proxy": { "type": "number" },
+            "direction": { "type": "string", "enum": ["expanding", "compressing", "stable"] }
+          }
+        },
+        "capital_cycle": {
+          "type": "object",
+          "properties": {
+            "score": { "type": "number" },
+            "trailing_pe": { "type": "number" },
+            "position": { "type": "string", "enum": ["early_cycle", "mid_cycle", "late_cycle"] }
+          }
+        }
+      }
+    },
+    "coverage": { "type": "string", "description": "E.g. '5/6 dimensions scored'." }
+  }
+}

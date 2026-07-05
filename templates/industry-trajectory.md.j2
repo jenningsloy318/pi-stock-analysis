@@ -1,0 +1,67 @@
+{# Industry Trajectory Report Template
+   Agent: sector-screener / industry-analyst
+   Output: stage2-batch-N.json (screening) or {company_dir}/industry_trajectory.json (deep-dive)
+   Schema: schemas/industry-trajectory.json
+#}
+# 行业轨迹分析: {{ etf_ticker }} ({{ gics_code }})
+
+**分析日期**: {{ timestamp }}
+**基准**: {{ benchmark }}
+
+---
+
+## 1. 轨迹评分 (Industry Trajectory Score)
+
+| 指标 | 数值 |
+|------|------|
+| 综合轨迹分 | {{ trajectory_score }}/10 |
+| 方向判断 | {{ trajectory_direction }} |
+| 正面信号数 | {{ positive_signals }}/6 |
+| 负面信号数 | {{ negative_signals }}/6 |
+
+## 2. 六维度分解
+
+| 维度 | 得分 | 方向 | 关键数据 |
+|------|------|------|----------|
+| 营收加速度 (Revenue Acceleration) | {{ dimensions.revenue_acceleration.score }}/10 | {{ dimensions.revenue_acceleration.direction }} | 近6M vs 前6M: {{ dimensions.revenue_acceleration.acceleration }} |
+| 利润率方向 (Margin Direction) | {{ dimensions.margin_direction.score }}/10 | {{ dimensions.margin_direction.direction }} | 隐含盈利增长: {{ dimensions.margin_direction.earnings_growth_implied }} |
+| RS动量 (Relative Strength Momentum) | {{ dimensions.rs_momentum.score }}/10 | {{ dimensions.rs_momentum.direction }} | 动量差: {{ dimensions.rs_momentum.momentum }} |
+| 资金流向 (Fund Flows) | {{ dimensions.fund_flows.score }}/10 | {{ dimensions.fund_flows.direction }} | 成交量变化: {{ dimensions.fund_flows.volume_change_1m }} |
+| 估值变化 (Valuation Change) | {{ dimensions.valuation_change.score }}/10 | {{ dimensions.valuation_change.direction }} | PE变化: {{ dimensions.valuation_change.pe_change_proxy }} |
+| 资本周期 (Capital Cycle) | {{ dimensions.capital_cycle.score }}/10 | {{ dimensions.capital_cycle.position }} | PE: {{ dimensions.capital_cycle.trailing_pe }}, Beta: {{ dimensions.capital_cycle.beta }} |
+
+## 3. 投资含义
+
+{% if trajectory_direction == "strong_improvement" %}
+**行业处于强劲改善期** — 营收加速、利润扩张、资金流入。此时应:
+- 加大该行业配置权重
+- 优先选择行业龙头 (受益最大)
+- 关注行业轮动的持续性 (3M vs 6M RS)
+{% elif trajectory_direction == "improving" %}
+**行业正在温和改善** — 多数维度向好但力度温和。此时应:
+- 维持或小幅增加配置
+- 关注改善能否加速 (下一季度数据)
+{% elif trajectory_direction == "deteriorating" %}
+**行业正在恶化** — 营收减速、利润收缩、或资金流出。此时应:
+- 降低该行业配置权重
+- 对该行业公司的评分施加折扣 (-5~10%)
+- 关注恶化是否见底 (Volume + Price divergence)
+{% elif trajectory_direction == "strong_deterioration" %}
+**行业处于严重恶化期** — 多个维度同时走坏。此时应:
+- 大幅降低或清仓该行业
+- 只有极端估值 (early_cycle) 才考虑逆势建仓
+{% else %}
+**行业方向不明确** — 多空信号混杂。此时应:
+- 保持中性配置
+- 逐个公司单独评估 (alpha > beta)
+{% endif %}
+
+## 4. 生命周期与资本周期定位
+
+- **生命周期阶段**: {{ lifecycle_stage }} (新兴/成长/成熟/衰退)
+- **资本周期位置**: {{ dimensions.capital_cycle.position }} (投资不足/均衡/过度投资)
+- **含义**: {% if dimensions.capital_cycle.position == "early_cycle" %}行业投资不足,供给偏紧,有定价权上行空间{% elif dimensions.capital_cycle.position == "late_cycle" %}行业投资过度,供给充裕,未来可能面临利润率压缩{% else %}行业处于均衡状态{% endif %}
+
+---
+*数据来源: yfinance ETF proxy ({{ etf_ticker }})*
+*覆盖率: {{ coverage }}*

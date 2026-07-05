@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "stock-analysis/schemas/lens-verdict.json",
+  "title": "LensVerdict",
+  "description": "Return from judge-panel agent (Phase 6c). One verdict per investment framework lens (Buffett/Lynch/Marks/Druckenmiller) per company.",
+  "type": "object",
+  "required": ["lens", "score", "verdict"],
+  "properties": {
+    "lens": { "type": "string", "enum": ["buffett", "lynch", "marks", "druckenmiller"] },
+    "score": { "type": "number", "minimum": 0, "maximum": 10, "description": "Framework-specific score." },
+    "verdict": { "type": "string", "enum": ["STRONG_BUY", "BUY", "HOLD", "AVOID"] },
+    "rationale": { "type": "string", "description": "1-2 sentence rationale from this lens." },
+    "dimensions_matched": { "type": "array", "items": { "type": "string" }, "description": "What the stock does well per this framework." },
+    "dimensions_violated": { "type": "array", "items": { "type": "string" }, "description": "What it does poorly per this framework." }
+  }
+}

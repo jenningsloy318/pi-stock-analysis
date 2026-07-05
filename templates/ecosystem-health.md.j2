@@ -1,0 +1,82 @@
+{# Supply Chain Ecosystem Health Report Template
+   Agent: supply-chain-analyst (Stage 8) / company-screener (Stage 4 light check)
+   Output: {company_dir}/sc_ecosystem.json
+   Schema: schemas/ecosystem-health.json
+#}
+# 供应链生态系统健康度: {{ ticker }}
+
+**分析日期**: {{ timestamp }}
+
+---
+
+## 1. 生态系统综合评分
+
+| 指标 | 数值 |
+|------|------|
+| 上游健康度 (Upstream Health) | {{ upstream.health_score }}/10 |
+| 下游健康度 (Downstream Health) | {{ downstream.health_score }}/10 |
+| 生态动量 (Ecosystem Momentum) | {{ ecosystem_momentum.score }}/10 |
+| 方向 | {{ ecosystem_momentum.direction }} |
+| 上下游趋同 | {{ "是" if ecosystem_momentum.convergence else "否" }} |
+| 筛选调整系数 | {{ chain_health_adjustment }} |
+
+## 2. 上游供应商分析
+
+| 供应商 | 关系 | 营收增长YoY | 毛利趋势 | 6M股价表现 | 健康分 |
+|--------|------|-------------|----------|------------|--------|
+{% for co in upstream.companies %}
+| {{ co.name }} ({{ co.ticker }}) | {{ co.relationship }} | {{ co.rev_growth_yoy | pct }} | {{ co.margin_trend }} | {{ co.stock_6m_return | pct }} | {{ co.health_score }}/10 |
+{% endfor %}
+
+**上游趋势**: {{ upstream.trend }}
+
+## 3. 下游客户分析
+
+| 客户 | 关系 | 营收增长YoY | 毛利趋势 | 6M股价表现 | 健康分 |
+|------|------|-------------|----------|------------|--------|
+{% for co in downstream.companies %}
+| {{ co.name }} ({{ co.ticker }}) | {{ co.relationship }} | {{ co.rev_growth_yoy | pct }} | {{ co.margin_trend }} | {{ co.stock_6m_return | pct }} | {{ co.health_score }}/10 |
+{% endfor %}
+
+**下游趋势**: {{ downstream.trend }}
+
+## 4. 传导风险 (Propagation Risks)
+
+{% if propagation_risks %}
+| 方向 | 公司 | 风险描述 | 严重度 |
+|------|------|----------|--------|
+{% for risk in propagation_risks %}
+| {{ risk.direction }} | {{ risk.company }} | {{ risk.risk }} | {{ risk.severity }} |
+{% endfor %}
+{% else %}
+无显著传导风险。
+{% endif %}
+
+## 5. 投资含义
+
+{% if ecosystem_momentum.direction == "positive" %}
+**生态系统健康** — 上下游均在改善，公司处于有利的产业链位置:
+- 供应商增长 → 产能充足、技术迭代快、成本可能下降
+- 客户扩张 → 需求确定性高、订单可见度好
+- 评分加成: +{{ chain_health_adjustment * 100 }}%
+{% elif ecosystem_momentum.direction == "negative" %}
+**生态系统恶化** — 上下游同时走弱，需警惕:
+- 供应商收缩 → 成本上升风险、供给不稳定
+- 客户萎缩 → 需求下降、应收账款风险
+- 评分扣减: {{ chain_health_adjustment * 100 }}%
+{% elif ecosystem_momentum.direction == "divergent" %}
+**生态系统分化** — 上下游严重分歧 (spread ≥ 3分):
+- 需分析公司在产业链中的议价权
+- 强方向受益、弱方向承压
+{% else %}
+**生态系统信号混杂** — 无明确方向性判断。
+{% endif %}
+
+## 6. 数据质量
+
+- 上游覆盖: {{ data_quality.upstream_coverage }} 家公司
+- 下游覆盖: {{ data_quality.downstream_coverage }} 家公司
+- 置信度: {{ data_quality.confidence }}
+
+---
+*数据来源: yfinance (公开数据)*

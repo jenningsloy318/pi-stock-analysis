@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "stock-analysis/schemas/walk-result.json",
+  "title": "WalkResult",
+  "description": "Return from roadmap-walker agent (walk mode). Top-down supply chain decomposition with chokepoint candidates.",
+  "type": "object",
+  "required": ["theme", "candidates"],
+  "properties": {
+    "theme": { "type": "string", "description": "Supply chain theme being walked (e.g. 'AI infrastructure')." },
+    "layers": { "type": "array", "description": "Supply chain layers from finished-product to raw-substrate." },
+    "candidates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["ticker"],
+        "properties": {
+          "ticker": { "type": "string" },
+          "name": { "type": "string" },
+          "tier": { "type": "string", "description": "Supply chain layer (e.g. 'foundry', 'equipment', 'materials')." },
+          "asymmetry_score": { "type": "number", "description": "Bottleneck asymmetry composite 0-100." }
+        }
+      }
+    }
+  }
+}

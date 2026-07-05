@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "stock-analysis/schemas/company-list.json",
+  "title": "CompanyList",
+  "description": "Return from company-screener agent (Stage 4). Ranked company watchlist within a sub-industry.",
+  "type": "object",
+  "required": ["companies"],
+  "properties": {
+    "companies": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["ticker", "score"],
+        "properties": {
+          "ticker": { "type": "string" },
+          "name": { "type": "string" },
+          "sub_industry_code": { "type": "string" },
+          "score": { "type": "number", "description": "Composite score 0-100." },
+          "current_price": { "type": "number" },
+          "price_filter_pass": { "type": "boolean", "description": "True if under price threshold." },
+          "chain_health_adj": { "type": "number", "description": "±0.10 ecosystem bonus/penalty applied at screening." }
+        }
+      }
+    }
+  }
+}
