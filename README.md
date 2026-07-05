@@ -1,4 +1,4 @@
-# @jenningsloy318/pi-stock-analysis
+# pi-stock-analysis
 
 A **self-contained**, modular equity-research pipeline for the [Pi coding
 agent](https://github.com/earendil-works/pi-coding-agent), built on a composable
@@ -15,7 +15,7 @@ external workflow engine.**
 ## Install
 
 ```bash
-pi package add @jenningsloy318/pi-stock-analysis
+pi package add pi-stock-analysis
 # or, from a local checkout:
 pi -e /path/to/pi-stock-analysis
 ```

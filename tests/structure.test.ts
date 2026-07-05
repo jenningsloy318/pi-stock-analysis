@@ -22,8 +22,8 @@ describe("package.json", () => {
 	it("has the pi-package keyword", () => {
 		expect((readJson("package.json").keywords as string[])).toContain("pi-package");
 	});
-	it("is named @jenningsloy318/pi-stock-analysis", () => {
-		expect(readJson("package.json").name).toBe("@jenningsloy318/pi-stock-analysis");
+	it("is named pi-stock-analysis", () => {
+		expect(readJson("package.json").name).toBe("pi-stock-analysis");
 	});
 	it("declares NO bundled runtime dependencies (peer-only)", () => {
 		const pkg = readJson("package.json");

@@ -32,7 +32,7 @@ import { parseStockAnalysisArgs } from "./args.ts";
 
 const STOCK_ANALYSIS_TOOL = "stock_analysis";
 const STOCK_ANALYSIS_COMMAND = "stock-analysis";
-const PACKAGE_NAME = "@jenningsloy318/pi-stock-analysis";
+const PACKAGE_NAME = "pi-stock-analysis";
 
 // ─── EXTENSION_ROOT resolution (ISS-01) ─────────────────────────────────────
 

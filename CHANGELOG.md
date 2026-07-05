@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Initial port of the `stock-analysis` Claude Code plugin to a self-contained
-  pi extension (`@jenningsloy318/pi-stock-analysis`), mirroring the
+  pi extension (`pi-stock-analysis`), mirroring the
   `pi-super-dev` ↔ `super-dev-plugin` port pattern.
 - Re-implements the 5-mode / 19-stage equity-research orchestration as a
   TypeScript control-flow node algebra (`src/nodes.ts`) + declarative pipeline
