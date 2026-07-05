@@ -44,6 +44,10 @@ import type {
 	ControlObj,
 } from "./types.ts";
 
+// Real helper dispatcher (helpers.ts SYNC map). Used by runHelperStub so gates
+// resolve the gate-* validators in production instead of the empty registry.
+import { runHelper as dispatchHelper } from "./helpers.ts";
+
 // ─── Shared helper types ────────────────────────────────────────────────────
 
 type Predicate = (state: StockAnalysisState, ctx: StageContext) => boolean | Promise<boolean>;
@@ -554,7 +558,11 @@ export function registerHelper(name: string, fn: (s: Record<string, unknown>) =>
 	HELPER_REGISTRY[name] = fn;
 }
 async function runHelperStub(name: string, sources: Record<string, unknown>): Promise<{ value: ControlObj }> {
+	// Test-injected fakes (registerHelper) take precedence — preserves the seam.
 	const fn = HELPER_REGISTRY[name];
 	if (fn) return fn(sources);
-	return { value: { pass: false, errors: [`unknown helper: ${name}`] } };
+	// Production path: delegate to the real helper dispatcher (helpers.ts SYNC).
+	// Without this the registry stayed empty and EVERY gate returned
+	// "unknown helper: ...", exhausting all gates (the 2026-07-05 screen bug).
+	return dispatchHelper({ name, sources });
 }

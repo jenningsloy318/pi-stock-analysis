@@ -5,7 +5,7 @@
 
 import { describe, it, expect } from "vitest";
 import {
-	task, sequence, branch, choose, parallel, retry, gate, map, noop, tryCatch,
+	task, sequence, branch, choose, parallel, retry, gate, map, noop, tryCatch, gateValidator,
 } from "../src/nodes.ts";
 import type { StockAnalysisState, Stage, NodeResult } from "../src/types.ts";
 import { makeState, makeFakeCtx } from "./helpers/fake-context.ts";
@@ -206,6 +206,35 @@ describe("gate", () => {
 		const r = await node.run(state, ctx);
 		expect(r.status).toBe("failed");
 		expect(state.tracking.gateResults.some((g) => !g.passed)).toBe(true);
+	});
+});
+
+describe("gateValidator (regression: must resolve real helpers, not 'unknown helper')", () => {
+	it("gate-shared-data passes when Stage 1 produced files", async () => {
+		const state = makeState();
+		state["stage-1"] = { status: "ok", files: ["macro.json"] };
+		const v = await gateValidator("gate-shared-data", "stage-1")(state, makeFakeCtx(state));
+		expect(v.pass).toBe(true);
+		expect(v.errors).toEqual([]);
+	});
+	it("gate-shared-data fails with a REAL validation error (never 'unknown helper')", async () => {
+		const state = makeState();
+		// stage-1 absent → data-collector produced nothing
+		const v = await gateValidator("gate-shared-data", "stage-1")(state, makeFakeCtx(state));
+		expect(v.pass).toBe(false);
+		expect(v.errors.some((e) => e.includes("unknown helper"))).toBe(false);
+		expect(v.errors.length).toBeGreaterThan(0);
+	});
+	it("gate-screening passes with companies + both filters applied", async () => {
+		const state = makeState();
+		state["stage-4"] = {
+			companies: [{ ticker: "AAPL" }],
+			subIndustries: [{ name: "Semiconductors" }],
+			priceFilterApplied: true,
+			headroomFilterApplied: true,
+		};
+		const v = await gateValidator("gate-screening", "stage-4")(state, makeFakeCtx(state));
+		expect(v.pass).toBe(true);
 	});
 });
 

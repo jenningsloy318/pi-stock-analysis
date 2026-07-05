@@ -30,7 +30,12 @@ export function runHeader(state: StockAnalysisState): string {
 		`- Universe: ${state.universe}`,
 	];
 	if (state.tickers.length) lines.push(`- Tickers: ${state.tickers.join(", ")}`);
-	if (state.theme) lines.push(`- Theme: ${state.theme}`);
+	if (state.theme) {
+		lines.push(`- Theme: ${state.theme}`);
+		if (state.mode === "screen" || state.mode === "pipeline") {
+			lines.push(`- ⚠️ THEME-FOCUS ACTIVE: restrict the screen to the "${state.theme}" value-chain sub-industries (NOT a generic market-wide top-RS screen).`);
+		}
+	}
 	lines.push(`- topIndustry=${state.topIndustry}, totalCompany=${state.totalCompany}, topPrice=${state.topPrice}, minHeadroom=${state.minHeadroom}, days=${state.days}`);
 	lines.push("");
 	lines.push(`## Resources (package root: ${state.extensionRoot})`);
@@ -86,27 +91,48 @@ export function stagePrompt(
 // Each returns the task body; stagePrompt() wraps it with the header + feedback.
 
 export function dataCollectorBody(state: StockAnalysisState): string {
-	return [
+	const lines = [
 		"Fetch the shared market data ONCE (macro, economic surprises, sector/sub-industry RS, market breadth, theme performance).",
 		"Write each dataset to the reports dir as JSON. Record every file path you produced.",
 		"Load references/gics_taxonomy.md and references/data_source_matrix.md before fetching.",
-	].join("\n");
+	];
+	if (state.theme) {
+		lines.push(
+			`🎯 THEME FOCUS: the run targets theme "${state.theme}". You MUST run scripts/fetch_theme_performance.py and scripts/fetch_sub_industry_universe.py for this theme so downstream screeners can restrict to the theme's value chain. Persist their JSON output under the reports dir.`,
+		);
+	}
+	return lines.join("\n");
 }
 
 export function sectorScreenerBody(state: StockAnalysisState): string {
-	return [
-		`Screen ALL 163 GICS Level-4 sub-industries on 11 dimensions; select the top ${state.topIndustry}.`,
-		"Process in 3 parallel batches of ~54. Deep-dive the top N (Porter, TAM, catalysts, barriers, company universe).",
+	const lines = [
 		`Hot-sector focus window: days=${state.days} (1=today, 5=week, 10=2 weeks, 20=month).`,
-	].join("\n");
+		"Process in 3 parallel batches of ~54. Deep-dive the top N (Porter, TAM, catalysts, barriers, company universe).",
+	];
+	if (state.theme) {
+		lines.unshift(
+			`🎯 THEME FOCUS: the user's target theme is "${state.theme}". You MUST restrict the screen to GICS Level-4 sub-industries that are part of this theme's value chain (upstream materials → midstream components → downstream integrators).`,
+			`First identify the theme-relevant sub-industries: run scripts/fetch_sub_industry_universe.py and scripts/fetch_theme_performance.py against "${state.theme}", then map the theme to specific GICS Level-4 codes (consult references/gics_taxonomy.md). Only rank sub-industries materially relevant to "${state.theme}". Do NOT return generic top-RS sub-industries unrelated to the theme.`,
+			`Then apply the 11-dimension screen to those theme-relevant sub-industries and select the top ${state.topIndustry} that ALSO score well on the 11 dimensions (don't rank by theme-relevance alone).`,
+		);
+	} else {
+		lines.unshift(`Screen ALL 163 GICS Level-4 sub-industries on 11 dimensions; select the top ${state.topIndustry}.`);
+	}
+	return lines.join("\n");
 }
 
 export function companyScreenerBody(state: StockAnalysisState): string {
-	return [
+	const lines = [
 		`Screen companies across the top sub-industries. Apply filters: price (< ${state.topPrice} ${state.topPrice === 0 ? "[DISABLED]" : ""}), Growth Headroom ≥ ${state.minHeadroom}, universe=${state.universe}.`,
 		"Dual-channel FCF filter (conservative positive-FCF OR aggressive negative-FCF with 2yr runway). Cyclical adjustment at Step 3.5.",
 		`Select top ${state.totalCompany} by score across ALL sub-industries (NOT quota per sub-industry).`,
-	].join("\n");
+	];
+	if (state.theme) {
+		lines.push(
+			`🎯 THEME FOCUS: only screen companies within the "${state.theme}" value-chain sub-industries selected upstream. Every company in the watchlist must be materially exposed to "${state.theme}"; reject diversified names with only incidental theme exposure.`,
+		);
+	}
+	return lines.join("\n");
 }
 
 export function roadmapWalkerBody(state: StockAnalysisState): string {
