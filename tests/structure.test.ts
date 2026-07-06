@@ -25,9 +25,11 @@ describe("package.json", () => {
 	it("is named pi-stock-analysis", () => {
 		expect(readJson("package.json").name).toBe("pi-stock-analysis");
 	});
-	it("declares NO bundled runtime dependencies (peer-only)", () => {
+	it("declares only nunjucks as a bundled runtime dependency", () => {
 		const pkg = readJson("package.json");
-		expect(pkg.dependencies).toBeUndefined();
+		// nunjucks is the one approved runtime dep (the in-process TS renderer).
+		// Everything else stays peer-only (provided by the pi host).
+		expect(Object.keys(pkg.dependencies ?? {})).toEqual(["nunjucks"]);
 		expect(pkg.bundledDependencies).toBeUndefined();
 	});
 	it("does NOT depend on @agwab/pi-workflow", () => {

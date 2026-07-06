@@ -56,9 +56,13 @@
     "@earendil-works/pi-coding-agent": "*",
     "typebox": "*"
   },
+  "dependencies": {
+    "nunjucks": "^3.2.4"
+  },
   "devDependencies": {
     "@earendil-works/pi-coding-agent": "*",
     "@types/node": "^22.0.0",
+    "@types/nunjucks": "^3.2.6",
     "typebox": "*",
     "typescript": "^5.4",
     "vitest": "^3.0"

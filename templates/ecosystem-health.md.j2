@@ -13,9 +13,9 @@
 
 | 指标 | 数值 |
 |------|------|
-| 上游健康度 (Upstream Health) | {{ upstream.health_score }}/10 |
-| 下游健康度 (Downstream Health) | {{ downstream.health_score }}/10 |
-| 生态动量 (Ecosystem Momentum) | {{ ecosystem_momentum.score }}/10 |
+| 上游健康度 (Upstream Health) | {{ upstream.health_score|default("--", true) }}/10 |
+| 下游健康度 (Downstream Health) | {{ downstream.health_score|default("--", true) }}/10 |
+| 生态动量 (Ecosystem Momentum) | {{ ecosystem_momentum.score|default("--", true) }}/10 |
 | 方向 | {{ ecosystem_momentum.direction }} |
 | 上下游趋同 | {{ "是" if ecosystem_momentum.convergence else "否" }} |
 | 筛选调整系数 | {{ chain_health_adjustment }} |
