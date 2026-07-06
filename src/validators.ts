@@ -13,6 +13,8 @@
  */
 
 import { validatePayload, EquityReportPayload } from "./render-schemas.ts";
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 
 // From validate_report.py RATING_BRACKETS.
 const RATING_BRACKETS: [number, string][] = [
@@ -104,4 +106,46 @@ export function validateRenderedReport(payload: unknown): ValidationOutcome {
 		errors.push("short-term report missing three_axis");
 	}
 	return { ok: errors.length === 0, errors };
+}
+
+// ─── dataFreshness: port of gate_data_freshness ─────────────────────────────
+/** Scan a company/report dir's *.json files and flag any whose
+ *  `retrieved_at`/`computed_at`/`generated_at` is older than `maxDays`. Tolerant:
+ *  a few stale files pass; a majority-stale dir fails (a data-quality signal). */
+export function dataFreshness(companyDir: string, opts: { maxDays?: number; now?: number } = {}): ValidationOutcome {
+	const maxDays = opts.maxDays ?? 14;
+	const now = opts.now ?? Date.now();
+	let files: string[];
+	try {
+		files = readdirSync(companyDir).filter((f) => f.endsWith(".json"));
+	} catch {
+		return { ok: true, errors: [] }; // dir absent → nothing to check
+	}
+	let checked = 0;
+	let stale = 0;
+	const staleFiles: string[] = [];
+	for (const f of files) {
+		let d: Record<string, unknown>;
+		try {
+			d = JSON.parse(readFileSync(join(companyDir, f), "utf8"));
+		} catch {
+			continue;
+		}
+		const ts = (d.retrieved_at ?? d.computed_at ?? d.generated_at) as string | undefined;
+		if (!ts) continue;
+		const t = Date.parse(ts);
+		if (Number.isNaN(t)) continue;
+		checked++;
+		const ageDays = (now - t) / 86_400_000;
+		if (ageDays > maxDays) {
+			stale++;
+			if (staleFiles.length < 3) staleFiles.push(`${f}:${ageDays.toFixed(0)}d`);
+		}
+	}
+	if (checked === 0 || stale === 0) return { ok: true, errors: [] };
+	const ok = stale <= checked * 0.5;
+	return {
+		ok,
+		errors: ok ? [] : [`${stale}/${checked} data files >${maxDays}d old: ${staleFiles.join(", ")}${stale > staleFiles.length ? " …" : ""}`],
+	};
 }

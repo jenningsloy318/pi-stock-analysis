@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.4] - 2026-07-05
+
+### Changed
+- **Template-rendered reports are now the DEFAULT** (Phase 1 complete). Stage 17
+  renders schema-validated payloads through Nunjucks templates instead of the
+  agent hand-writing markdown, so format (001 ranking, 当前股价 column, exact
+  disclaimer, short-term 三轴) is correct by construction. Set
+  `STOCK_ANALYSIS_RENDER_REPORTS=0` to revert to the proven markdown writer.
+- screen-mode Stage 17 renders sector-level screening reports via
+  templates/screening-report.njk + ScreeningReportPayload (one per horizon);
+  other modes render per-company equity reports (equity-report.njk).
+- gate-reports now runs TS content gates on every render-path report payload
+  (conviction consistency, kill-switch falsifiability, short-term 三轴) AND a
+  per-company data-freshness check — replacing scripts/validate_report.py on
+  this path (no Python round-trip, no markdown parsing).
+
+### Added
+- ScreeningReportPayload schema + screening-report.njk canonical template.
+- renderScreeningReportsTask (screen mode) + screeningReportPayloadBody.
+- dataFreshness() TS validator (ports validate_report.py gate_data_freshness).
+
 ## [0.1.3] - 2026-07-05
 
 ### Fixed

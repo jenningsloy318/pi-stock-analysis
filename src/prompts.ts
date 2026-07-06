@@ -220,3 +220,19 @@ export function reportPayloadBody(company: Company, horizon: "long" | "mid" | "s
 		`Do NOT write a markdown report — emit ONLY the <control> JSON payload. The renderer applies all formatting (001 ranking, 当前股价 column, disclaimer).`,
 	].join("\n");
 }
+
+/** Screen-mode payload prompt — ONE sector-level screening report per horizon
+ *  (Stage 17 screen path). Agent emits a ScreeningReportPayload. */
+export function screeningReportPayloadBody(horizon: "long" | "mid" | "short", state: StockAnalysisState): string {
+	return [
+		`Emit the JSON payload for ONE screening report — universe=${state.universe}${state.theme ? `, theme=${state.theme}` : ""}, horizon=${horizon}.`,
+		`Synthesize from the screening stage outputs (sub-industry leaderboard at stage-4, company watchlist) under the reports dir.`,
+		`Emit <control> JSON with a "report" key matching the ScreeningReportPayload schema:`,
+		`- scope: {universe, theme?, topIndustry?, days?}`,
+		`- summary: concise Chinese prose overview of what the screen found`,
+		`- subIndustries: [{name, score?, reason, topCompanies:[{ticker,name}]}] — the top sub-industries`,
+		`- watchlist: [{rank, ticker, name, price (current), currency, composite?, subIndustry?, reason}] — 推荐标的排名; rank 1 = top pick; EVERY row MUST include a current price`,
+		`- missing?: [sections lacking data]`,
+		`Do NOT write markdown — emit ONLY the <control> JSON payload. The renderer applies formatting (001 ranking, 当前股价 column, disclaimer).`,
+	].join("\n");
+}

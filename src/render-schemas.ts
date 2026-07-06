@@ -190,3 +190,43 @@ export const EquityReportPayload = Type.Object({
 });
 
 export type EquityReport = Static<typeof EquityReportPayload>;
+
+// ─── ScreeningReport payload (templates/screening-report.njk) ───────────────
+/** Stage 17 screen-mode. A sector-level screening report (NOT per-company):
+ *  top sub-industries + a ranked watchlist. One report per horizon. */
+
+const SubIndustryRow = Type.Object({
+	name: Type.String(),
+	score: Type.Optional(Type.Number()),
+	reason: Type.String(),
+	topCompanies: Type.Optional(Type.Array(Type.Object({
+		ticker: Type.String(), name: Type.String(),
+	}))),
+});
+
+const WatchlistRow = Type.Object({
+	rank: Type.Number(),
+	ticker: Type.String(),
+	name: Type.String(),
+	price: Type.Number(),
+	currency: Type.Union([Type.Literal("USD"), Type.Literal("CN"), Type.Literal("HK")]),
+	composite: Type.Optional(Type.Number()),
+	subIndustry: Type.Optional(Type.String()),
+	reason: Type.String(),
+});
+
+export const ScreeningReportPayload = Type.Object({
+	horizon: Type.Union([Type.Literal("long"), Type.Literal("mid"), Type.Literal("short")]),
+	scope: Type.Object({
+		universe: Type.String(),
+		theme: Type.Optional(Type.String()),
+		topIndustry: Type.Optional(Type.Number()),
+		days: Type.Optional(Type.Number()),
+	}),
+	summary: Type.String(),
+	subIndustries: Type.Array(SubIndustryRow),
+	watchlist: Type.Array(WatchlistRow),
+	missing: Type.Optional(Type.Array(Type.String())),
+});
+
+export type ScreeningReport = Static<typeof ScreeningReportPayload>;

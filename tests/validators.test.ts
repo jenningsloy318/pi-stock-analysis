@@ -5,11 +5,13 @@
  */
 
 import { describe, it, expect } from "vitest";
+import { mkdirSync, writeFileSync, rmSync } from "node:fs";
 import {
 	expectedRating,
 	convictionConsistency,
 	killSwitchFalsifiable,
 	validateRenderedReport,
+	dataFreshness,
 } from "../src/validators.ts";
 import { runHelper } from "../src/helpers.ts";
 
@@ -113,5 +115,39 @@ describe("gate-reports helper (render path)", () => {
 	it("fails when no reports were generated", async () => {
 		const r = await runHelper({ name: "gate-reports", sources: { "stage-17": { reports: [] } } });
 		expect(r.value.pass).toBe(false);
+	});
+});
+
+describe("dataFreshness (ported gate_data_freshness)", () => {
+	it("passes a dir of fresh files", () => {
+		const dir = "/tmp/pi-stock-fresh";
+		rmSync(dir, { recursive: true, force: true });
+		mkdirSync(dir, { recursive: true });
+		const now = new Date().toISOString();
+		writeFileSync(`${dir}/a.json`, JSON.stringify({ retrieved_at: now }));
+		writeFileSync(`${dir}/b.json`, JSON.stringify({ computed_at: now }));
+		expect(dataFreshness(dir).ok).toBe(true);
+	});
+	it("fails when a majority of timestamped files are stale", () => {
+		const dir = "/tmp/pi-stock-stale";
+		rmSync(dir, { recursive: true, force: true });
+		mkdirSync(dir, { recursive: true });
+		const stale = new Date(Date.now() - 30 * 86_400_000).toISOString(); // 30d ago
+		writeFileSync(`${dir}/a.json`, JSON.stringify({ retrieved_at: stale }));
+		writeFileSync(`${dir}/b.json`, JSON.stringify({ retrieved_at: stale }));
+		writeFileSync(`${dir}/c.json`, JSON.stringify({ retrieved_at: stale }));
+		const v = dataFreshness(dir, { maxDays: 14 });
+		expect(v.ok).toBe(false);
+		expect(v.errors.join(" ")).toMatch(/>\d+d|stale|old/);
+	});
+	it("skips a missing dir (best-effort)", () => {
+		expect(dataFreshness("/nonexistent-dir-xyz-456").ok).toBe(true);
+	});
+	it("ignores files with no timestamp", () => {
+		const dir = "/tmp/pi-stock-nots";
+		rmSync(dir, { recursive: true, force: true });
+		mkdirSync(dir, { recursive: true });
+		writeFileSync(`${dir}/a.json`, JSON.stringify({ foo: 1 }));
+		expect(dataFreshness(dir).ok).toBe(true);
 	});
 });

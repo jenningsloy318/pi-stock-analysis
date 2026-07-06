@@ -177,3 +177,60 @@ export function renderReportsTask(spec: RenderReportsSpec): Stage {
 		},
 	};
 }
+
+// ─── renderScreeningReportsTask: one sector-level report per horizon ─────────
+
+export interface RenderScreeningReportsSpec {
+	id: string;
+	label: string;
+	agent: string;
+	buildPrompt: (state: StockAnalysisState, ctx: StageContext, horizon: "long" | "mid" | "short") => string;
+	schema: object;
+	payloadKey?: string;
+	templateName: string;
+	outputPathFor: (state: StockAnalysisState, horizon: "long" | "mid" | "short") => string;
+	controlKeys?: string[];
+	horizons?: ("long" | "mid" | "short")[];
+	fatal?: boolean;
+}
+
+/** Screen-mode counterpart to renderReportsTask: renders ONE sector-level
+ *  screening report per horizon (no per-company dimension). Sets
+ *  state[id].reports = [{path, ticker:"SCREEN", horizon, payload}]. */
+export function renderScreeningReportsTask(spec: RenderScreeningReportsSpec): Stage {
+	const horizons = spec.horizons ?? ["long", "mid", "short"];
+	return {
+		id: spec.id,
+		label: spec.label,
+		fatal: spec.fatal,
+		async run(state, ctx) {
+			const reports: { path: string; ticker: string; horizon: string; payload: unknown }[] = [];
+			for (const horizon of horizons) {
+				if (!ctx.budget.check()) break;
+				const prompt = spec.buildPrompt(state, ctx, horizon);
+				const result = await ctx.agent({
+					id: `pipeline.${spec.id}.${horizon}`,
+					agent: spec.agent,
+					prompt,
+					controlKeys: spec.controlKeys,
+				});
+				const control = (result.control ?? {}) as Record<string, unknown>;
+				const payload = spec.payloadKey ? control[spec.payloadKey] : control;
+				const v = validatePayload(spec.schema, payload);
+				if (!v.ok) { ctx.log(`${spec.id} ${horizon}: payload INVALID — ${v.errors.slice(0, 2).join("; ")}`); continue; }
+				const r = renderDoc({ templateName: spec.templateName, payload: payload as Record<string, unknown>, root: state.extensionRoot });
+				if (!r.ok) { ctx.log(`${spec.id} ${horizon}: render FAILED — ${r.error}`); continue; }
+				const out = spec.outputPathFor(state, horizon);
+				try {
+					mkdirSync(dirname(out), { recursive: true });
+					writeFileSync(out, r.doc as string, "utf8");
+				} catch (e) { ctx.log(`${spec.id} ${horizon}: write FAILED — ${(e as Error).message}`); continue; }
+				reports.push({ path: out, ticker: "SCREEN", horizon, payload });
+				ctx.log(`${spec.id} ${horizon}: rendered ${out}`);
+			}
+			(state as Record<string, unknown>)[spec.id] = { reports };
+			(state as StockAnalysisState).reports = reports as never;
+			return { reports };
+		},
+	};
+}

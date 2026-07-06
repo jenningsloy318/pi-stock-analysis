@@ -10,7 +10,8 @@
  */
 
 import type { ControlObj, HelperCall, HelperResult, Mode, Universe } from "./types.ts";
-import { validateRenderedReport } from "./validators.ts";
+import { dirname } from "node:path";
+import { validateRenderedReport, dataFreshness } from "./validators.ts";
 
 const ok = (digest: string, value: ControlObj): HelperResult => ({ value, digest });
 const fail = (errors: string[]): HelperResult => ({
@@ -157,7 +158,7 @@ function gateScoring(s: Record<string, unknown>): HelperResult {
 }
 
 function gateReports(s: Record<string, unknown>): HelperResult {
-	const stage17 = s["stage-17"] as { reports?: Array<{ ticker?: string; horizon?: string; payload?: unknown }> } | undefined;
+	const stage17 = s["stage-17"] as { reports?: Array<{ ticker?: string; horizon?: string; payload?: unknown; path?: string }> } | undefined;
 	const reports = stage17?.reports;
 	const errors: string[] = [];
 	if (!Array.isArray(reports) || reports.length === 0) {
@@ -172,6 +173,12 @@ function gateReports(s: Record<string, unknown>): HelperResult {
 	for (const r of withPayload) {
 		const v = validateRenderedReport(r.payload);
 		if (!v.ok) errors.push(`${r.ticker ?? "?"}/${r.horizon ?? "?"}: ${v.errors.slice(0, 3).join("; ")}`);
+		// Data-freshness on the per-company dir (skip sector-level SCREEN reports,
+		// whose dir is the whole run dir). Best-effort: missing dir ⇒ skip.
+		if (r.path && r.ticker && r.ticker !== "SCREEN") {
+			const f = dataFreshness(dirname(r.path));
+			if (!f.ok) errors.push(`${r.ticker}: ${f.errors.join("; ")}`);
+		}
 	}
 	return fail(errors);
 }

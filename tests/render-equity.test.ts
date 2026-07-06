@@ -9,7 +9,7 @@ import { describe, it, expect } from "vitest";
 import { join } from "node:path";
 import { readFileSync, rmSync } from "node:fs";
 import { renderDoc } from "../src/render.ts";
-import { validatePayload, EquityReportPayload } from "../src/render-schemas.ts";
+import { validatePayload, EquityReportPayload, ScreeningReportPayload } from "../src/render-schemas.ts";
 import { renderDocTask, renderReportsTask, type RenderDocResult } from "../src/render-node.ts";
 import { reportPayloadBody } from "../src/prompts.ts";
 import { makeState, makeFakeCtx } from "./helpers/fake-context.ts";
@@ -157,5 +157,39 @@ describe("renderReportsTask (company × horizon loop)", () => {
 		// short-horizon report includes the 三轴 section
 		const shortDoc = readFileSync(r.reports.find((x) => x.horizon === "short")!.path, "utf8");
 		expect(shortDoc).toContain("三轴结构检查");
+	});
+});
+
+describe("ScreeningReportPayload + screening-report.njk", () => {
+	const screeningPayload = {
+		horizon: "long",
+		scope: { universe: "US", theme: "AI chips", topIndustry: 10, days: 5 },
+		summary: "AI-accelerator sub-industries dominate the screen; humanoid-robotics adjacencies rising.",
+		subIndustries: [
+			{ name: "AI Accelerators", score: 9.2, reason: "Structural demand super-cycle.", topCompanies: [{ ticker: "NVDA", name: "NVIDIA" }] },
+			{ name: "Custom ASIC Silicon", score: 8.1, reason: "Hyperscaler insourcing.", topCompanies: [{ ticker: "AVGO", name: "Broadcom" }] },
+		],
+		watchlist: [
+			{ rank: 1, ticker: "NVDA", name: "NVIDIA", price: 128.5, currency: "USD", composite: 9, subIndustry: "AI Accelerators", reason: "Compute monopoly" },
+			{ rank: 2, ticker: "AVGO", name: "Broadcom", price: 1650, currency: "USD", composite: 8, subIndustry: "Custom ASIC Silicon", reason: "Custom silicon" },
+		],
+	};
+
+	it("validates the screening payload", () => {
+		expect(validatePayload(ScreeningReportPayload, screeningPayload).ok).toBe(true);
+	});
+
+	it("renders canonical screening formatting", () => {
+		const r = renderDoc({ templateName: "screening-report.njk", payload: screeningPayload, root: ROOT });
+		expect(r.ok, r.error).toBe(true);
+		const doc = r.doc!;
+		expect(doc).toContain("行业筛选报告");
+		expect(doc).toContain("AI chips");
+		expect(doc).toContain("领先子行业");
+		expect(doc).toContain("AI Accelerators");
+		expect(doc).toContain("| 001 |");
+		expect(doc).toContain("当前股价");
+		expect(doc).toContain("$128.50");
+		expect(doc).toContain("does not constitute financial advice");
 	});
 });

@@ -1,6 +1,6 @@
 {
   "name": "pi-stock-analysis",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Self-contained pi control-flow workflow extension for unified equity research (5 modes, 19 stages). Screens GICS sub-industries → deep-dives companies → scores → adversarial verify → judge panel → 3-horizon reports → best picks. Spawns specialist pi subagents; deterministic calculations run via the verbatim Python scripts.",
   "private": false,
   "type": "module",
