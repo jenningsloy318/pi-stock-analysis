@@ -10,6 +10,7 @@
  */
 
 import type { ControlObj, HelperCall, HelperResult, Mode, Universe } from "./types.ts";
+import { validateRenderedReport } from "./validators.ts";
 
 const ok = (digest: string, value: ControlObj): HelperResult => ({ value, digest });
 const fail = (errors: string[]): HelperResult => ({
@@ -156,9 +157,22 @@ function gateScoring(s: Record<string, unknown>): HelperResult {
 }
 
 function gateReports(s: Record<string, unknown>): HelperResult {
-	const reports = (s["stage-17"] as { reports?: unknown[] } | undefined)?.reports;
+	const stage17 = s["stage-17"] as { reports?: Array<{ ticker?: string; horizon?: string; payload?: unknown }> } | undefined;
+	const reports = stage17?.reports;
 	const errors: string[] = [];
-	if (!Array.isArray(reports) || reports.length === 0) errors.push("no reports generated at Stage 17");
+	if (!Array.isArray(reports) || reports.length === 0) {
+		errors.push("no reports generated at Stage 17");
+		return fail(errors);
+	}
+	// Render path: each report carries a payload → run the TS content gates
+	// (conviction consistency, kill-switch falsifiability, short-term 三轴),
+	// replacing validate_report.py on this path. Markdown path has no payload
+	// → the non-empty check above is the gate (format gates stay in Python).
+	const withPayload = reports.filter((r) => r && r.payload !== undefined);
+	for (const r of withPayload) {
+		const v = validateRenderedReport(r.payload);
+		if (!v.ok) errors.push(`${r.ticker ?? "?"}/${r.horizon ?? "?"}: ${v.errors.slice(0, 3).join("; ")}`);
+	}
 	return fail(errors);
 }
 

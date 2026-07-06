@@ -131,7 +131,7 @@ export function renderReportsTask(spec: RenderReportsSpec): Stage {
 			const companies = state.companies ?? [];
 			const jobs: ReportJob[] = companies.flatMap((company) =>
 				horizons.map((horizon) => ({ company, horizon })));
-			const reports: { path: string; ticker: string; horizon: string }[] = [];
+			const reports: { path: string; ticker: string; horizon: string; payload: unknown }[] = [];
 			for (const job of jobs) {
 				if (!ctx.budget.check()) break;
 				const prompt = spec.buildPrompt(state, ctx, job);
@@ -167,7 +167,7 @@ export function renderReportsTask(spec: RenderReportsSpec): Stage {
 					ctx.log(`${spec.id} ${tag}: write FAILED — ${(e as Error).message}`);
 					continue;
 				}
-				reports.push({ path: out, ticker: job.company.ticker, horizon: job.horizon });
+				reports.push({ path: out, ticker: job.company.ticker, horizon: job.horizon, payload });
 				ctx.log(`${spec.id} ${tag}: rendered ${out}`);
 			}
 			(state as Record<string, unknown>)[spec.id] = { reports };
