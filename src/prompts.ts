@@ -111,7 +111,7 @@ export function sectorScreenerBody(state: StockAnalysisState): string {
 	];
 	if (state.theme) {
 		lines.unshift(
-			`🎯 THEME FOCUS: the user's target theme is "${state.theme}". You MUST restrict the screen to GICS Level-4 sub-industries that are part of this theme's value chain (upstream materials → midstream components → downstream integrators).`,
+			`🎯 THEME FOCUS: the user's target theme is "${state.theme}". Screen mode IS theme-aware (this is NOT a walk-only feature): you MUST restrict the screen to GICS Level-4 sub-industries that are part of this theme's value chain (upstream materials → midstream components → downstream integrators). Do NOT fall back to screening all 163 sub-industries — the theme is an intentional narrowing filter, and returning unrelated hot sectors (e.g. financials/pharma when the user asked about robotics) is a FAILURE.`,
 			`First identify the theme-relevant sub-industries: run scripts/fetch_sub_industry_universe.py and scripts/fetch_theme_performance.py against "${state.theme}", then map the theme to specific GICS Level-4 codes (consult references/gics_taxonomy.md). Only rank sub-industries materially relevant to "${state.theme}". Do NOT return generic top-RS sub-industries unrelated to the theme.`,
 			`Then apply the 11-dimension screen to those theme-relevant sub-industries and select the top ${state.topIndustry} that ALSO score well on the 11 dimensions (don't rank by theme-relevance alone).`,
 		);

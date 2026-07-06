@@ -67,23 +67,38 @@ export function parseFlags(tokens: string[]): { flags: Record<string, string>; p
 
 /** Trigger-phrase → mode inference (no --mode present). */
 export function inferMode(text: string): { mode: Mode; tickers?: string[]; theme?: string } {
-	const t = text.toLowerCase();
+	const cleaned = text.replace(/["']/g, "").trim();
+	// 1. Walk: explicit supply-chain / chokepoint trace (lighter analysis).
 	if (/\b(walk|trace|map out)\b.*\b(chain|roadmap|ecosystem|bottleneck)\b/i.test(text) || /瓶颈分析/.test(text)) {
-		const theme = text.replace(/["']/g, "").trim();
-		return { mode: "walk", theme: theme || undefined };
+		return { mode: "walk", theme: cleaned || undefined };
 	}
+	// 2. Compare.
 	if (/\bvs\.?\b|\bversus\b|\bcompare\b|\bcomparison\b/i.test(text)) {
 		const tickers = extractTickers(text);
 		return { mode: "compare", tickers: tickers.length >= 2 ? tickers : undefined };
 	}
+	// 3. Analyze (deep-dive a ticker).
 	if (/\b(deep[ -]?dive|analyze|analyse|investment thesis|valuation of|due diligence|dcf)\b/i.test(text)) {
 		const tickers = extractTickers(text);
 		return { mode: "analyze", tickers: tickers.length >= 1 ? tickers : undefined };
 	}
+	// 4. Explicit screen keyword — broad UNLESS a theme/description follows it.
 	if (/\b(screen|screener|sector scan|best industries|industry screening)\b/i.test(text) || /筛选行业/.test(text)) {
-		return { mode: "screen" };
+		const theme = cleaned
+			.replace(/\b(screen|screener|sector scan|best industries|industry screening)\b/gi, "")
+			.replace(/筛选行业/g, "")
+			.trim();
+		return { mode: "screen", theme: theme || undefined };
 	}
-	// pipeline triggers + default
+	// 5. Broad pipeline triggers — stay unfiltered.
+	if (/\b(find best stocks|top picks|best stocks|全面筛选|全市场)\b/i.test(text)) {
+		return { mode: "pipeline" };
+	}
+	// 6. Anything else descriptive → narrow the pipeline to it as a theme
+	//    (a bare sector/theme like "人形机器人" / "EV battery" focuses the run).
+	if (cleaned) {
+		return { mode: "pipeline", theme: cleaned };
+	}
 	return { mode: "pipeline" };
 }
 
@@ -136,7 +151,10 @@ export function parseStockAnalysisArgs(argString: string): ParsedArgs {
 			const joined = positional.join(" ");
 			tickers = joined.split(/[,\s]+/).filter(Boolean);
 			if (tickers.length === 0) tickers = undefined;
-		} else if (mode === "walk") {
+		} else if (mode === "walk" || mode === "screen" || mode === "pipeline") {
+			// walk/screen/pipeline: positional text is the theme (narrowing filter).
+			// screen WITHOUT a theme screens all sub-industries; WITH a theme it
+			// restricts to that theme's value chain.
 			theme = positional.join(" ").trim() || undefined;
 		}
 	} else {

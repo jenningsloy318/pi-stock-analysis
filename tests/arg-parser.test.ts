@@ -113,3 +113,40 @@ describe("parseStockAnalysisArgs", () => {
 		expect(parseStockAnalysisArgs("").mode).toBe("pipeline");
 	});
 });
+
+describe("theme capture (regression: theme must reach screen/pipeline, not be dropped)", () => {
+	it("--mode screen <theme> captures the theme (the 2026-07-05 bug)", () => {
+		const r = parseStockAnalysisArgs("--mode screen 人形机器人");
+		expect(r.mode).toBe("screen");
+		expect(r.theme).toBe("人形机器人");
+	});
+	it("--mode screen with no positional → broad screen (no theme)", () => {
+		const r = parseStockAnalysisArgs("--mode screen --top-industry 40");
+		expect(r.mode).toBe("screen");
+		expect(r.theme).toBeUndefined();
+	});
+	it("--mode pipeline <theme> captures the theme (narrows the pipeline)", () => {
+		const r = parseStockAnalysisArgs("--mode pipeline AI chips");
+		expect(r.mode).toBe("pipeline");
+		expect(r.theme).toBe("AI chips");
+	});
+	it("inferMode: bare descriptive theme → pipeline narrowed to it", () => {
+		const r = inferMode("人形机器人");
+		expect(r.mode).toBe("pipeline");
+		expect(r.theme).toBe("人形机器人");
+	});
+	it("inferMode: 'screen <theme>' → screen narrowed to the theme", () => {
+		const r = inferMode("screen EV battery");
+		expect(r.mode).toBe("screen");
+		expect(r.theme).toBe("EV battery");
+	});
+	it("inferMode: 'screen' alone → broad screen (no theme)", () => {
+		const r = inferMode("screen sectors");
+		expect(r.mode).toBe("screen");
+	});
+	it("inferMode: broad pipeline trigger stays unfiltered (no theme)", () => {
+		const r = inferMode("find best stocks");
+		expect(r.mode).toBe("pipeline");
+		expect(r.theme).toBeUndefined();
+	});
+});

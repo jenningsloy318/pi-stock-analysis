@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.3] - 2026-07-05
+
+### Fixed
+- **Theme was dropped in screen/pipeline mode (critical).**
+  `parseStockAnalysisArgs` only captured positional text as `theme` for `walk`
+  mode, so `/stock-analysis --mode screen 人形机器人` set `mode=screen` but
+  DISCARDED the theme → `state.theme` was undefined → the theme-aware screener
+  prompt never fired → the run screened all 163 sub-industries and picked
+  unrelated hot sectors (the 2026-07-05 "mismatch with your intent" report).
+  Theme is now captured for screen + pipeline (and the no-`--mode` inference
+  path: a bare theme narrows the pipeline; `screen <theme>` narrows the screen).
+  Covered by 7 regression tests in arg-parser.test.ts.
+- Strengthened the sector-screener THEME-FOCUS prompt to preempt the agent's
+  incorrect "theme filtering only happens in walk mode" inference — it now
+  states screen IS theme-aware and that returning unrelated hot sectors is a
+  failure.
+
 ## [0.1.2] - 2026-07-05
 
 ### Added
