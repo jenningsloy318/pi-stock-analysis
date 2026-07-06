@@ -116,3 +116,71 @@ export const EcosystemHealthPayload = Type.Object({
 });
 
 export type EcosystemHealth = Static<typeof EcosystemHealthPayload>;
+
+// ─── EquityReport payload (templates/equity-report-long.njk) ────────────────
+/** Stage 17 report-writer. Hybrid contract: structured fields for everything
+ *  the validator checks (ranking rows, scores, 当前股价, disclaimer) + a
+ *  `sections[]` array of {id,title,body} where the agent supplies qualitative
+ *  prose (thesis, moat narrative, risks…). The template enforces structure /
+ *  order / formatting; the schema enforces presence. */
+
+const ReportSection = Type.Object({
+	id: Type.String(),			     // stable id, e.g. "moat", "management"
+	title: Type.String(),		     // rendered heading
+	body: Type.String(),		     // markdown prose authored by the agent
+});
+
+const RankingRow = Type.Object({
+	rank: Type.Number(),			 // rendered zero-padded to 001/002/003
+	ticker: Type.String(),
+	name: Type.String(),
+	price: Type.Number(),		     // 当前股价
+	reason: Type.String(),		     // one-line 推荐理由
+});
+
+const FrameworkLens = Type.Object({
+	name: Type.String(),		     // Buffett / Lynch / Marks / Druckenmiller
+	score: Type.Number(),		     // 0-10
+	verdict: Type.String(),
+});
+
+const CatalystRow = Type.Object({
+	event: Type.String(),
+	date: Type.String(),
+	probability: Type.Optional(Type.String()),
+});
+
+export const EquityReportPayload = Type.Object({
+	horizon: Type.Union([Type.Literal("long"), Type.Literal("mid"), Type.Literal("short")]),
+	company: Type.Object({
+		ticker: Type.String(),
+		name: Type.String(),
+		name_en: Type.Optional(Type.String()),
+		price: Type.Number(),
+		currency: Type.Union([Type.Literal("USD"), Type.Literal("CN"), Type.Literal("HK")]),
+	}),
+	scores: Type.Object({
+		composite: Type.Number(),		     // 1-10
+		rating: Type.String(),		     // Strong Buy / Buy / Hold / Sell / Strong Sell
+		conviction: Type.Optional(Type.Number()),
+		components: Type.Record(Type.String(), Type.Number()), // dimension → 1-10
+	}),
+	executive_summary: Type.String(),
+	thesis: Type.String(),
+	sections: Type.Array(ReportSection),
+	ranking: Type.Array(RankingRow),
+	kill_switch: Type.String(),
+	frameworks: Type.Optional(Type.Array(FrameworkLens)),
+	disagreements: Type.Optional(Type.Array(Type.String())),
+	consensus: Type.Optional(Type.String()),
+	catalysts: Type.Optional(Type.Array(CatalystRow)),
+	conclusion: Type.Object({
+		action: Type.String(),		     // 加仓/持有/减持/规避
+		target_price: Type.Optional(Type.Number()),
+		upside_pct: Type.Optional(Type.Number()),
+	}),
+	missing: Type.Optional(Type.Array(Type.String())),  // sections with [MISSING DATA]
+	mermaid: Type.Optional(Type.Record(Type.String(), Type.String())), // pre-rendered graph strings
+});
+
+export type EquityReport = Static<typeof EquityReportPayload>;
