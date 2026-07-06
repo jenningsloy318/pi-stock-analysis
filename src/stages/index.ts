@@ -32,9 +32,11 @@ import { isAshTicker } from "../helpers.ts";
 import {
 	stagePrompt, dataCollectorBody, sectorScreenerBody, companyScreenerBody,
 	roadmapWalkerBody, perCompanyAnalystBody, scorerBody, adversarialBody,
-	judgePanelBody, reportWriterBody, bestPicksBody,
+	judgePanelBody, reportWriterBody, bestPicksBody, reportPayloadBody,
 } from "../prompts.ts";
 import { ensurePythonEnv } from "../scripts.ts";
+import { renderReportsTask } from "../render-node.ts";
+import { EquityReportPayload } from "../render-schemas.ts";
 
 // ─── Predicates ─────────────────────────────────────────────────────────────
 
@@ -217,6 +219,22 @@ const reportWriterStage = writerTask({
 	buildPrompt: (s) => stagePrompt(s, "stage-17", reportWriterBody(s.mode, s), { controlKeys: ["reports"] }),
 });
 
+/** Stage 17 (opt-in rendered path) — one schema-validated payload → template
+ *  render per company × horizon (templates/equity-report.njk). Activated by
+ *  STOCK_ANALYSIS_RENDER_REPORTS=1; otherwise the markdown writerTask runs.
+ *  Zero-risk rollout: default unchanged. */
+const renderReportsStage = renderReportsTask({
+	id: "stage-17",
+	label: "Stage 17 — Report Generation (rendered)",
+	agent: "equity-report-writer",
+	controlKeys: ["report"],
+	payloadKey: "report",
+	schema: EquityReportPayload,
+	templateForHorizon: (_h) => "equity-report.njk",
+	outputPathFor: (s, job) => join(s.reportsDir, job.company.ticker, `${job.company.ticker}_${job.horizon}.md`),
+	buildPrompt: (s, _ctx, job) => stagePrompt(s, "stage-17", reportPayloadBody(job.company, job.horizon), { controlKeys: ["report"] }),
+});
+
 /** 17.4 — Completeness Critic: one critic per report. */
 const completenessCriticStage: Node = map(
 	{
@@ -280,7 +298,12 @@ const gateScoring = gate(
 
 const gateReports = gate(
 	{ validate: gateValidator("gate-reports", "stage-17"), attempts: 4, feedbackKey: "reports" },
-	task(reportWriterStage),
+	// Opt-in: STOCK_ANALYSIS_RENDER_REPORTS=1 → Phase-1 schema-validated template
+	// render; default → the proven markdown writerTask (zero-risk rollout).
+	branch(
+		() => process.env.STOCK_ANALYSIS_RENDER_REPORTS === "1",
+		{ yes: task(renderReportsStage), no: task(reportWriterStage) },
+	),
 );
 
 const gateBestPicks = gate(

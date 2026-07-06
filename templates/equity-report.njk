@@ -1,12 +1,12 @@
-{# Equity Research Report — LONG-TERM (canonical, validator-friendly)
+{# Equity Research Report — horizon-aware (canonical, validator-friendly)
    Agent: equity-report-writer (Stage 17)
    Schema: EquityReportPayload (src/render-schemas.ts)
-   The agent fills a payload; THIS template owns all formatting. The 推荐标的排名
-   table uses 001/002/003 ranking + a 当前股价 column, and the Disclaimer is the
-   exact text validate_report.py requires — so the format-gates pass by
-   construction. Qualitative analysis lives in payload.sections[].body.
+   Renders long/mid/short from the SAME template via `horizon` branches. The
+   推荐标的排名 table uses 001/002/003 + a 当前股价 column, and the Disclaimer is
+   the exact text validate_report.py requires — so format-gates pass by
+   construction. Short-term adds the mandatory 三轴结构 section.
 #}
-# {{ company.name }} ({{ company.ticker }}) — 长期投资分析 (Long-Term)
+# {{ company.name }} ({{ company.ticker }}) — {% if horizon == "long" %}长期投资分析 (Long-Term){% elif horizon == "mid" %}中期投资分析 (Mid-Term){% else %}短期投资分析 (Short-Term){% endif %}
 
 **当前股价**: {{ company.price | fmt_price(company.currency) }}{% if company.name_en %} | **English**: {{ company.name_en }}{% endif %}
 **综合评分**: {{ scores.composite }}/10 — **{{ scores.rating }}**{% if scores.conviction %} (conviction {{ scores.conviction }}){% endif %}
@@ -35,6 +35,20 @@
 {{ s.body }}
 
 {% endfor %}
+{% if horizon == "short" %}
+## 三轴结构检查 (Direction × Vega × Asymmetry)
+
+{% if three_axis %}
+- **Direction**: {{ three_axis.direction }}
+- **Vega**: {{ three_axis.vega }}
+- **Asymmetry**: {{ three_axis.asymmetry }}
+
+{{ three_axis.summary }}
+{% else %}
+*(三轴数据不可用 — options/breadth data insufficient for a quantitative read.)*
+{% endif %}
+
+{% endif %}
 ## 推荐标的排名 (Recommended Stock Ranking)
 
 | # | 代码 (Ticker) | 名称 (Name) | 当前股价 (Price) | 推荐理由 (One-line thesis) |

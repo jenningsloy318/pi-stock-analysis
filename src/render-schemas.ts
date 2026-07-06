@@ -181,6 +181,12 @@ export const EquityReportPayload = Type.Object({
 	}),
 	missing: Type.Optional(Type.Array(Type.String())),  // sections with [MISSING DATA]
 	mermaid: Type.Optional(Type.Record(Type.String(), Type.String())), // pre-rendered graph strings
+	three_axis: Type.Optional(Type.Object({
+		direction: Type.String(),
+		vega: Type.String(),
+		asymmetry: Type.String(),
+		summary: Type.String(),
+	})), // short-term only (Stage 11 options/breadth)
 });
 
 export type EquityReport = Static<typeof EquityReportPayload>;

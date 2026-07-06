@@ -13,7 +13,7 @@
  * lazily per-stage.
  */
 
-import type { StockAnalysisState, StageContext } from "./types.ts";
+import type { StockAnalysisState, StageContext, Company } from "./types.ts";
 
 // EXTENSION_ROOT is resolved in extension.ts and threaded via state.extensionRoot
 // (the actual absolute path), AND exported into the spawned agent's env so
@@ -194,5 +194,29 @@ export function bestPicksBody(_state: StockAnalysisState): string {
 		"Write HIGHLIGHTS_BEST_PICKS.md grouping picks by position type (core/satellite/tactical) from judge_panel.json.",
 		"Sections: 核心仓位推荐, 成长卫星推荐, 期权投机推荐. Per-company: rank, ticker, name, 当前股价, composite, conviction, 2-sentence thesis, kill switch, catalyst, 框架共识, 对手方验证.",
 		"End with 组合互补性检查 (industry concentration + style homogeneity). ⚠️ caution notes for flagged picks.",
+	].join("\n");
+}
+
+// ─── Rendered-report payload prompt (one company × one horizon) ─────────────
+// Used by renderReportsTask (opt-in via STOCK_ANALYSIS_RENDER_REPORTS=1). The
+// agent emits a typed JSON payload; the Nunjucks template owns all formatting.
+
+export function reportPayloadBody(company: Company, horizon: "long" | "mid" | "short"): string {
+	const score = typeof company.score === "number" ? `${company.score}/10` : "(unscored)";
+	return [
+		`Emit the JSON payload for ONE equity research report — ticker=${company.ticker}${company.name ? ` (${company.name})` : ""}, composite ${score}, horizon=${horizon}.`,
+		`Synthesize from the stage summaries under the reports dir (scores, metrics, supply_chain, valuation, the per-stage analyses).`,
+		`Emit <control> JSON with a "report" key matching the EquityReportPayload schema:`,
+		`- company: {ticker, name, name_en?, price (current), currency (USD|CN|HK)}`,
+		`- scores: {composite (1-10), rating, conviction?, components:{dimension name → 1-10}}`,
+		`- executive_summary, thesis: concise Chinese prose (technical terms may stay English)`,
+		`- sections: [{id,title,body}] — the qualitative analysis (moat, management, valuation, risks, …); body is markdown prose you author`,
+		`- ranking: [{rank,ticker,name,price,reason}] — 推荐标的排名; the analyzed company is ALWAYS rank 1`,
+		`- kill_switch: one falsifiable, specific red-line condition`,
+		`- frameworks?: [{name,score(0-10),verdict}], disagreements?: [string], consensus?: string`,
+		`- conclusion: {action (加仓/持有/减持/规避), target_price?, upside_pct? (decimal 0.36 = 36%)}`,
+		`- missing?: [section names that lack data]`,
+		horizon === "short" ? `- three_axis: {direction, vega, asymmetry, summary} — MANDATORY for short-term (from options/breadth data)` : `- three_axis: only required for short-term reports — omit for ${horizon}`,
+		`Do NOT write a markdown report — emit ONLY the <control> JSON payload. The renderer applies all formatting (001 ranking, 当前股价 column, disclaimer).`,
 	].join("\n");
 }

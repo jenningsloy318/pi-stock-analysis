@@ -1,8 +1,8 @@
 /**
- * Phase 1: EquityReportPayload schema + equity-report-long.njk template +
- * renderDocTask node. Proves the agent-payload → validate → render → write
- * path produces the validator-critical structure (001 ranking, 当前股价 column,
- * exact disclaimer) deterministically.
+ * Phase 1: EquityReportPayload schema + equity-report.njk template +
+ * renderDocTask + renderReportsTask. Proves the agent-payload → validate →
+ * render → write path produces the validator-critical structure (001 ranking,
+ * 当前股价 column, exact disclaimer, short-term 三轴) deterministically.
  */
 
 import { describe, it, expect } from "vitest";
@@ -10,11 +10,12 @@ import { join } from "node:path";
 import { readFileSync, rmSync } from "node:fs";
 import { renderDoc } from "../src/render.ts";
 import { validatePayload, EquityReportPayload } from "../src/render-schemas.ts";
-import { renderDocTask, type RenderDocResult } from "../src/render-node.ts";
+import { renderDocTask, renderReportsTask, type RenderDocResult } from "../src/render-node.ts";
+import { reportPayloadBody } from "../src/prompts.ts";
 import { makeState, makeFakeCtx } from "./helpers/fake-context.ts";
 
 const ROOT = join(import.meta.dirname, "..");
-const OUT = "/tmp/pi-stock-test-equity-report-long.md";
+const OUT = "/tmp/pi-stock-test-equity-report.md";
 
 const payload = {
 	horizon: "long",
@@ -45,27 +46,39 @@ const payload = {
 	missing: [],
 };
 
-describe("EquityReportPayload + equity-report-long.njk", () => {
+describe("EquityReportPayload + equity-report.njk", () => {
 	it("validates the realistic payload", () => {
 		expect(validatePayload(EquityReportPayload, payload).ok).toBe(true);
 	});
 
 	it("renders with canonical, validator-friendly formatting", () => {
-		const r = renderDoc({ templateName: "equity-report-long.njk", payload, root: ROOT });
+		const r = renderDoc({ templateName: "equity-report.njk", payload, root: ROOT });
 		expect(r.ok, r.error).toBe(true);
 		const doc = r.doc!;
-		expect(doc).toContain("NVIDIA (NVDA) — 长期投资分析");      // title
-		expect(doc).toContain("$128.50");                            // 当前股价 (fmt_price USD)
-		expect(doc).toContain("Strong Buy");                         // rating
-		expect(doc).toContain("推荐标的排名");                        // ranking section
+		expect(doc).toContain("NVIDIA (NVDA) — 长期投资分析");      // horizon-aware title
+		expect(doc).toContain("$128.50");                            // 当前股价
+		expect(doc).toContain("Strong Buy");
+		expect(doc).toContain("推荐标的排名");
 		expect(doc).toContain("| 001 |");                            // 001 zero-padded rank
-		expect(doc).toContain("| 002 |");                            // 002
+		expect(doc).toContain("| 002 |");
 		expect(doc).toContain("当前股价");                            // mandatory column header
 		expect(doc).toContain("CUDA ecosystem");                     // section body prose injected
 		expect(doc).toContain("Buffett");                            // framework table
-		expect(doc).toContain("$175.00");                            // target price rendered
+		expect(doc).toContain("$175.00");                            // target price
 		expect(doc).toContain("36.0%");                              // upside (pct 0.36)
-		expect(doc).toContain("does not constitute financial advice"); // exact disclaimer text
+		expect(doc).toContain("does not constitute financial advice"); // exact disclaimer
+	});
+
+	it("renders the short-term horizon with the 三轴 section", () => {
+		const shortPayload = {
+			...payload, horizon: "short",
+			three_axis: { direction: "Bullish", vega: "Long-gamma", asymmetry: "2:1", summary: "Asymmetric upside." },
+		};
+		const r = renderDoc({ templateName: "equity-report.njk", payload: shortPayload, root: ROOT });
+		expect(r.ok, r.error).toBe(true);
+		expect(r.doc).toContain("短期投资分析 (Short-Term)");
+		expect(r.doc).toContain("三轴结构检查");
+		expect(r.doc).toContain("Long-gamma");
 	});
 
 	it("rejects a payload missing required fields", () => {
@@ -75,7 +88,7 @@ describe("EquityReportPayload + equity-report-long.njk", () => {
 	});
 });
 
-describe("renderDocTask (node)", () => {
+describe("renderDocTask (single report node)", () => {
 	it("validates + renders + writes the file when the agent emits a valid payload", async () => {
 		rmSync(OUT, { force: true });
 		const state = makeState({ extensionRoot: ROOT });
@@ -83,11 +96,11 @@ describe("renderDocTask (node)", () => {
 		const stage = renderDocTask({
 			id: "stage-17", label: "report-writer", agent: "equity-report-writer",
 			buildPrompt: () => "fill the payload", schema: EquityReportPayload,
-			templateName: "equity-report-long.njk", outputPath: () => OUT,
+			templateName: "equity-report.njk", outputPath: () => OUT,
 		});
 		const r = (await stage.run(state, ctx)) as RenderDocResult;
-		expect(r?.status).toBe("rendered");
-		expect(r?.file_path).toBe(OUT);
+		expect(r.status).toBe("rendered");
+		expect(r.file_path).toBe(OUT);
 		const doc = readFileSync(OUT, "utf8");
 		expect(doc).toContain("| 001 |");
 		expect(doc).toContain("does not constitute financial advice");
@@ -100,11 +113,49 @@ describe("renderDocTask (node)", () => {
 		const stage = renderDocTask({
 			id: "stage-17", label: "report-writer", agent: "equity-report-writer",
 			buildPrompt: () => "fill the payload", schema: EquityReportPayload,
-			templateName: "equity-report-long.njk", outputPath: () => OUT,
+			templateName: "equity-report.njk", outputPath: () => OUT,
 		});
 		const r = (await stage.run(state, ctx)) as RenderDocResult;
-		expect(r?.status).toBe("invalid");
-		expect(r?.errors?.length).toBeGreaterThan(0);
-		expect(() => readFileSync(OUT, "utf8")).toThrow(); // nothing written
+		expect(r.status).toBe("invalid");
+		expect(r.errors?.length).toBeGreaterThan(0);
+		expect(() => readFileSync(OUT, "utf8")).toThrow();
+	});
+});
+
+describe("renderReportsTask (company × horizon loop)", () => {
+	it("renders one .md per company × horizon (6 total) and sets state[id].reports", async () => {
+		rmSync("/tmp/pi-stock-test-reports", { recursive: true, force: true });
+		const companies = [
+			{ ticker: "NVDA", name: "NVIDIA", isAsh: false, score: 9 },
+			{ ticker: "AVGO", name: "Broadcom", isAsh: false, score: 8 },
+		];
+		const state = makeState({ extensionRoot: ROOT, companies: companies as never });
+		let calls = 0;
+		const ctx = makeFakeCtx(state, {
+			agentResult: (call) => {
+				calls++;
+				const parts = call.id.split("."); // pipeline.stage-17r.TICKER.horizon
+				const ticker = parts[2];
+				const horizon = parts[3] as "long" | "mid" | "short";
+				return { text: "", control: { report: { ...payload, horizon, company: { ...payload.company, ticker, name: ticker } } } };
+			},
+		});
+		const stage = renderReportsTask({
+			id: "stage-17r", label: "reports (rendered)", agent: "equity-report-writer",
+			controlKeys: ["report"], payloadKey: "report", schema: EquityReportPayload,
+			templateForHorizon: () => "equity-report.njk",
+			outputPathFor: (_s, job) => `/tmp/pi-stock-test-reports/${job.company.ticker}_${job.horizon}.md`,
+			buildPrompt: (_s, _c, job) => reportPayloadBody(job.company, job.horizon),
+		});
+		const r = (await stage.run(state, ctx)) as { reports: { path: string; horizon: string }[] };
+		expect(calls).toBe(6); // 2 companies × 3 horizons
+		expect(r.reports.length).toBe(6);
+		expect(state.reports.length).toBe(6);
+		const firstDoc = readFileSync(r.reports[0].path, "utf8");
+		expect(firstDoc).toContain("| 001 |");
+		expect(firstDoc).toContain("does not constitute financial advice");
+		// short-horizon report includes the 三轴 section
+		const shortDoc = readFileSync(r.reports.find((x) => x.horizon === "short")!.path, "utf8");
+		expect(shortDoc).toContain("三轴结构检查");
 	});
 });
