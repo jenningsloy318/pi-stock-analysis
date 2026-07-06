@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.7] - 2026-07-05
+
+### Fixed
+- **conviction field blocked valid reports.** The agent emits `conviction` as a
+  label ("High"/"Medium"/"Low") but the schema demanded a number, so the
+  gate-reports schema check rejected an otherwise-complete analysis and the
+  rendered .md never got written. `EquityReportPayload.scores.conviction` and
+  `BestPick.conviction` now accept `number | string` — the field is genuinely a
+  label-or-score, and conviction-consistency uses the numeric composite, not
+  conviction. Regression test added.
+
 ## [0.1.6] - 2026-07-05
 
 ### Added

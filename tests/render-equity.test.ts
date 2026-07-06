@@ -51,6 +51,11 @@ describe("EquityReportPayload + equity-report.njk", () => {
 		expect(validatePayload(EquityReportPayload, payload).ok).toBe(true);
 	});
 
+	it("accepts conviction as a string label (High/Medium/Low) — the agent-emission bug", () => {
+		const v = validatePayload(EquityReportPayload, { ...payload, scores: { ...payload.scores, conviction: "High" } });
+		expect(v.ok, v.errors.join("; ")).toBe(true);
+	});
+
 	it("renders with canonical, validator-friendly formatting", () => {
 		const r = renderDoc({ templateName: "equity-report.njk", payload, root: ROOT });
 		expect(r.ok, r.error).toBe(true);

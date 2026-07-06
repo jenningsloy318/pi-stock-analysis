@@ -162,7 +162,7 @@ export const EquityReportPayload = Type.Object({
 	scores: Type.Object({
 		composite: Type.Number(),		     // 1-10
 		rating: Type.String(),		     // Strong Buy / Buy / Hold / Sell / Strong Sell
-		conviction: Type.Optional(Type.Number()),
+		conviction: Type.Optional(Type.Union([Type.Number(), Type.String()])), // numeric 1-10 OR a label (High/Medium/Low)
 		components: Type.Record(Type.String(), Type.Number()), // dimension → 1-10
 	}),
 	executive_summary: Type.String(),
@@ -242,7 +242,7 @@ const BestPick = Type.Object({
 	price: Type.Number(),
 	currency: Type.Union([Type.Literal("USD"), Type.Literal("CN"), Type.Literal("HK")]),
 	composite: Type.Optional(Type.Number()),
-	conviction: Type.Optional(Type.Number()),
+	conviction: Type.Optional(Type.Union([Type.Number(), Type.String()])), // numeric OR label
 	thesis: Type.String(),
 	kill_switch: Type.String(),
 	catalyst: Type.Optional(Type.String()),
