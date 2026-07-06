@@ -171,3 +171,70 @@ export function forensicChecks(companyDir: string): ValidationOutcome {
 	if (f === undefined) errors.push("Piotroski F-Score not computed");
 	return { ok: errors.length === 0, errors };
 }
+
+// ─── factCheck: port of gate_fact_check (hallucination / cross-reference) ────
+/** Cross-references raw-data.json vs metrics.json (revenue, market cap, P/E,
+ *  FCF sign, D/E direction). Tolerant: each check is neutral when the data is
+ *  absent; only real discrepancies fail. Files missing ⇒ skip (non-blocking). */
+function firstNum(entries: unknown): number | null {
+	if (typeof entries === "number") return entries;
+	if (Array.isArray(entries) && entries.length) {
+		const e = entries[0] as Record<string, unknown> | number;
+		return typeof e === "number" ? e : typeof e?.value === "number" ? e.value : null;
+	}
+	return null;
+}
+function relDiff(a: number, b: number): number {
+	return Math.abs(a - b) / Math.max(Math.abs(a), 1);
+}
+
+export function factCheck(companyDir: string): ValidationOutcome {
+	let raw: Record<string, any>;
+	let metrics: Record<string, any>;
+	try {
+		raw = JSON.parse(readFileSync(join(companyDir, "raw-data.json"), "utf8"));
+		metrics = JSON.parse(readFileSync(join(companyDir, "metrics.json"), "utf8"));
+	} catch {
+		return { ok: true, errors: [] }; // files missing → skip
+	}
+	const errors: string[] = [];
+	const ratios = (metrics.ratios ?? {}) as Record<string, number>;
+	const fin = (raw.financials ?? raw) as Record<string, any>;
+	const income = (fin.income_statement ?? {}) as Record<string, unknown>;
+	const cashflow = (fin.cash_flow ?? {}) as Record<string, unknown>;
+
+	// 1. Revenue consistency (<5%)
+	const rawRev = firstNum(income.revenue);
+	const metricsRev = (metrics.revenue as number | undefined) ?? ratios.revenue;
+	if (rawRev != null && metricsRev != null && relDiff(rawRev, metricsRev) > 0.05) {
+		errors.push(`revenue: raw ${rawRev} vs metrics ${metricsRev} (>5%)`);
+	}
+	// 2. Market-cap consistency (<10%)
+	const rawMc = (raw.market_cap as number | undefined) ?? (raw.profile as { market_cap?: number } | undefined)?.market_cap;
+	const metricsMc = (metrics.market_cap as number | undefined) ?? ratios.market_cap;
+	if (rawMc != null && metricsMc != null && relDiff(rawMc, metricsMc) > 0.10) {
+		errors.push(`market_cap: raw ${rawMc} vs metrics ${metricsMc} (>10%)`);
+	}
+	// 3. P/E internal consistency (EPS × PE ≈ price, <15%)
+	const pe = ratios.pe_ratio;
+	const eps = ratios.eps;
+	const price = (raw.price as number | undefined) ?? (raw.profile as { price?: number } | undefined)?.price;
+	if (pe && eps && price && price > 0) {
+		const implied = pe * eps;
+		if (relDiff(implied, price) > 0.15) errors.push(`P/E: PE×EPS=${implied.toFixed(2)} vs price=${price} (>15%)`);
+	}
+	// 4. FCF sign vs FCF yield sign
+	const fcf = firstNum(cashflow.free_cash_flow);
+	const fcfYield = ratios.fcf_yield;
+	if (fcf != null && fcfYield != null && (fcf >= 0) !== (fcfYield >= 0)) {
+		errors.push(`FCF sign: FCF=${fcf} vs FCF yield=${fcfYield}`);
+	}
+	// 5. D/E direction vs net debt
+	const de = ratios.debt_to_equity;
+	const nd = ratios.net_debt;
+	if (de != null && nd != null) {
+		const dirOk = (de > 0) === (nd > 0) || (de === 0 && nd <= 0);
+		if (!dirOk) errors.push(`D/E direction: D/E=${de} vs net_debt=${nd}`);
+	}
+	return { ok: errors.length === 0, errors };
+}

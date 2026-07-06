@@ -11,7 +11,7 @@
 
 import type { ControlObj, HelperCall, HelperResult, Mode, Universe } from "./types.ts";
 import { dirname } from "node:path";
-import { validateRenderedReport, dataFreshness, forensicChecks } from "./validators.ts";
+import { validateRenderedReport, dataFreshness, forensicChecks, factCheck } from "./validators.ts";
 
 const ok = (digest: string, value: ControlObj): HelperResult => ({ value, digest });
 const fail = (errors: string[]): HelperResult => ({
@@ -180,6 +180,8 @@ function gateReports(s: Record<string, unknown>): HelperResult {
 			if (!f.ok) errors.push(`${r.ticker}: ${f.errors.join("; ")}`);
 			const fc = forensicChecks(dirname(r.path));
 			if (!fc.ok) errors.push(`${r.ticker} forensic: ${fc.errors.join("; ")}`);
+			const fa = factCheck(dirname(r.path));
+			if (!fa.ok) errors.push(`${r.ticker} fact-check: ${fa.errors.join("; ")}`);
 		}
 	}
 	return fail(errors);

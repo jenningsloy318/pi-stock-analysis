@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.6] - 2026-07-05
+
+### Added
+- factCheck() TS validator completes the validate_report.py gate port —
+  cross-references raw-data.json vs metrics.json (revenue, market cap, P/E,
+  FCF sign, D/E direction), tolerant (neutral when data absent), wired into
+  gate-reports alongside dataFreshness and forensicChecks.
+
+### Notes
+- validate_report.py is now FULLY retired on the render path. Every gate is
+  handled in TS or guaranteed by the template: data freshness, conviction
+  consistency, forensic presence (Beneish/Altman/Piotroski), kill-switch
+  falsifiability, fact-check (raw↔metrics cross-reference), three_axis (moot —
+  short-term template guarantees it), Chinese-language (moot — template is
+  Chinese), source-coverage (moot — data stages produce the JSON files). The
+  script remains only for the markdown path (STOCK_ANALYSIS_RENDER_REPORTS=0).
+
 ## [0.1.5] - 2026-07-05
 
 ### Added

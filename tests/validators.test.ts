@@ -13,6 +13,7 @@ import {
 	validateRenderedReport,
 	dataFreshness,
 	forensicChecks,
+	factCheck,
 } from "../src/validators.ts";
 import { runHelper } from "../src/helpers.ts";
 
@@ -172,5 +173,42 @@ describe("forensicChecks (ported gate_forensic_checks)", () => {
 	});
 	it("skips when metrics.json is absent", () => {
 		expect(forensicChecks("/nonexistent-forensic-xyz-789").ok).toBe(true);
+	});
+});
+
+describe("factCheck (ported gate_fact_check)", () => {
+	it("passes when raw-data and metrics agree", () => {
+		const dir = "/tmp/pi-stock-fact-ok";
+		rmSync(dir, { recursive: true, force: true });
+		mkdirSync(dir, { recursive: true });
+		writeFileSync(`${dir}/raw-data.json`, JSON.stringify({
+			market_cap: 1000, price: 100, profile: { market_cap: 1000, price: 100 },
+			financials: { income_statement: { revenue: [{ value: 500 }] }, cash_flow: { free_cash_flow: [{ value: 50 }] } },
+		}));
+		writeFileSync(`${dir}/metrics.json`, JSON.stringify({
+			revenue: 500, market_cap: 1000, ratios: { pe_ratio: 20, eps: 5, fcf_yield: 0.05, debt_to_equity: 1.5, net_debt: 200 },
+		}));
+		expect(factCheck(dir).ok).toBe(true);
+	});
+	it("flags a revenue discrepancy", () => {
+		const dir = "/tmp/pi-stock-fact-rev";
+		rmSync(dir, { recursive: true, force: true });
+		mkdirSync(dir, { recursive: true });
+		writeFileSync(`${dir}/raw-data.json`, JSON.stringify({ financials: { income_statement: { revenue: [{ value: 500 }] } } }));
+		writeFileSync(`${dir}/metrics.json`, JSON.stringify({ revenue: 900 }));
+		const v = factCheck(dir);
+		expect(v.ok).toBe(false);
+		expect(v.errors.join(" ")).toMatch(/revenue/);
+	});
+	it("flags a P/E inconsistency", () => {
+		const dir = "/tmp/pi-stock-fact-pe";
+		rmSync(dir, { recursive: true, force: true });
+		mkdirSync(dir, { recursive: true });
+		writeFileSync(`${dir}/raw-data.json`, JSON.stringify({ price: 100 }));
+		writeFileSync(`${dir}/metrics.json`, JSON.stringify({ ratios: { pe_ratio: 50, eps: 1 } })); // 50×1=50 vs price 100 → 50% diff
+		expect(factCheck(dir).ok).toBe(false);
+	});
+	it("skips when raw-data.json / metrics.json absent", () => {
+		expect(factCheck("/nonexistent-fact-xyz-321").ok).toBe(true);
 	});
 });
