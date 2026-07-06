@@ -9,7 +9,7 @@ import { describe, it, expect } from "vitest";
 import { join } from "node:path";
 import { readFileSync, rmSync } from "node:fs";
 import { renderDoc } from "../src/render.ts";
-import { validatePayload, EquityReportPayload, ScreeningReportPayload } from "../src/render-schemas.ts";
+import { validatePayload, EquityReportPayload, ScreeningReportPayload, BestPicksPayload } from "../src/render-schemas.ts";
 import { renderDocTask, renderReportsTask, type RenderDocResult } from "../src/render-node.ts";
 import { reportPayloadBody } from "../src/prompts.ts";
 import { makeState, makeFakeCtx } from "./helpers/fake-context.ts";
@@ -190,6 +190,36 @@ describe("ScreeningReportPayload + screening-report.njk", () => {
 		expect(doc).toContain("| 001 |");
 		expect(doc).toContain("当前股价");
 		expect(doc).toContain("$128.50");
+		expect(doc).toContain("does not constitute financial advice");
+	});
+});
+
+describe("BestPicksPayload + best-picks.njk", () => {
+	const bp = {
+		groups: [
+			{ type: "core", label: "核心仓位推荐", picks: [
+				{ rank: 1, ticker: "NVDA", name: "NVIDIA", price: 128.5, currency: "USD", composite: 9, conviction: 8.5, thesis: "AI compute monopoly.", kill_switch: "If DC GPU revenue -20% QoQ for 2 quarters, re-evaluate.", catalyst: "GTC 2026", framework_consensus: "Moat agreed", adversary_validation: "Survived 2/3 skeptics" },
+			] },
+			{ type: "tactical", label: "期权投机推荐", picks: [
+				{ rank: 2, ticker: "AVGO", name: "Broadcom", price: 1650, currency: "USD", composite: 8, conviction: 7, thesis: "Custom ASIC silicon.", kill_switch: "If hyperscaler capex cuts >30%, exit.", caution: "Rich multiple" },
+			] },
+		],
+		complementarity: { industry_concentration: "Semiconductor-heavy", style_homogeneity: "Growth-tilted", notes: "Add a defensive name." },
+		caution_notes: ["AVGO trades at a premium."],
+	};
+	it("validates + renders canonical best-picks formatting", () => {
+		expect(validatePayload(BestPicksPayload, bp).ok).toBe(true);
+		const r = renderDoc({ templateName: "best-picks.njk", payload: bp, root: ROOT });
+		expect(r.ok, r.error).toBe(true);
+		const doc = r.doc!;
+		expect(doc).toContain("重点推荐");
+		expect(doc).toContain("核心仓位推荐");
+		expect(doc).toContain("期权投机推荐");
+		expect(doc).toContain("| 001 |");
+		expect(doc).toContain("当前股价");
+		expect(doc).toContain("$128.50");
+		expect(doc).toContain("组合互补性检查");
+		expect(doc).toContain("Semiconductor-heavy");
 		expect(doc).toContain("does not constitute financial advice");
 	});
 });

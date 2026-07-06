@@ -149,3 +149,25 @@ export function dataFreshness(companyDir: string, opts: { maxDays?: number; now?
 		errors: ok ? [] : [`${stale}/${checked} data files >${maxDays}d old: ${staleFiles.join(", ")}${stale > staleFiles.length ? " …" : ""}`],
 	};
 }
+
+// ─── forensicChecks: port of gate_forensic_checks ───────────────────────────
+/** Reads metrics.json's Beneish/Altman/Piotroski scores. Matching the Python
+ *  gate, this PASSES iff all three are present (absence blocks); threshold
+ *  breaches (Beneish > -1.78, Altman < 1.81) are warnings surfaced in the data,
+ *  not blocking. metrics.json missing ⇒ skip (not a report-time failure). */
+export function forensicChecks(companyDir: string): ValidationOutcome {
+	let metrics: Record<string, unknown>;
+	try {
+		metrics = JSON.parse(readFileSync(join(companyDir, "metrics.json"), "utf8"));
+	} catch {
+		return { ok: true, errors: [] };
+	}
+	const m = (metrics.beneish_mscore as { mscore?: number } | undefined)?.mscore;
+	const z = (metrics.altman_zscore as { zscore?: number } | undefined)?.zscore;
+	const f = (metrics.piotroski_fscore as { fscore?: number } | undefined)?.fscore;
+	const errors: string[] = [];
+	if (m === undefined) errors.push("Beneish M-Score not computed");
+	if (z === undefined) errors.push("Altman Z-Score not computed");
+	if (f === undefined) errors.push("Piotroski F-Score not computed");
+	return { ok: errors.length === 0, errors };
+}

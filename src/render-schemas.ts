@@ -230,3 +230,41 @@ export const ScreeningReportPayload = Type.Object({
 });
 
 export type ScreeningReport = Static<typeof ScreeningReportPayload>;
+
+// ─── BestPicks payload (templates/best-picks.njk) ───────────────────────────
+/** Stage 18 — HIGHLIGHTS_BEST_PICKS.md. Groups top picks by position type
+ *  (核心仓位 / 成长卫星 / 期权投机) + a portfolio-complementarity check. */
+
+const BestPick = Type.Object({
+	rank: Type.Number(),
+	ticker: Type.String(),
+	name: Type.String(),
+	price: Type.Number(),
+	currency: Type.Union([Type.Literal("USD"), Type.Literal("CN"), Type.Literal("HK")]),
+	composite: Type.Optional(Type.Number()),
+	conviction: Type.Optional(Type.Number()),
+	thesis: Type.String(),
+	kill_switch: Type.String(),
+	catalyst: Type.Optional(Type.String()),
+	framework_consensus: Type.Optional(Type.String()),
+	adversary_validation: Type.Optional(Type.String()),
+	caution: Type.Optional(Type.String()),
+});
+
+const BestPickGroup = Type.Object({
+	type: Type.Union([Type.Literal("core"), Type.Literal("satellite"), Type.Literal("tactical")]),
+	label: Type.String(),
+	picks: Type.Array(BestPick),
+});
+
+export const BestPicksPayload = Type.Object({
+	groups: Type.Array(BestPickGroup),
+	complementarity: Type.Object({
+		industry_concentration: Type.String(),
+		style_homogeneity: Type.String(),
+		notes: Type.Optional(Type.String()),
+	}),
+	caution_notes: Type.Optional(Type.Array(Type.String())),
+});
+
+export type BestPicks = Static<typeof BestPicksPayload>;

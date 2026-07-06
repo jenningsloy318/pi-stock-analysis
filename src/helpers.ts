@@ -11,7 +11,7 @@
 
 import type { ControlObj, HelperCall, HelperResult, Mode, Universe } from "./types.ts";
 import { dirname } from "node:path";
-import { validateRenderedReport, dataFreshness } from "./validators.ts";
+import { validateRenderedReport, dataFreshness, forensicChecks } from "./validators.ts";
 
 const ok = (digest: string, value: ControlObj): HelperResult => ({ value, digest });
 const fail = (errors: string[]): HelperResult => ({
@@ -178,6 +178,8 @@ function gateReports(s: Record<string, unknown>): HelperResult {
 		if (r.path && r.ticker && r.ticker !== "SCREEN") {
 			const f = dataFreshness(dirname(r.path));
 			if (!f.ok) errors.push(`${r.ticker}: ${f.errors.join("; ")}`);
+			const fc = forensicChecks(dirname(r.path));
+			if (!fc.ok) errors.push(`${r.ticker} forensic: ${fc.errors.join("; ")}`);
 		}
 	}
 	return fail(errors);
@@ -187,6 +189,9 @@ function gateBestPicks(s: Record<string, unknown>): HelperResult {
 	const bp = requireSource(s, "stage-18");
 	const errors: string[] = [];
 	if (!bp) errors.push("Stage 18 best-picks output not produced");
+	else if ((bp as { status?: string }).status === "rendered") {
+		// Render path: renderDocTask already schema-validated the payload + wrote the file.
+	}
 	else {
 		const picks = (bp.bestPicks as unknown[]) ?? (bp.picks as unknown[]) ?? [];
 		if (picks.length === 0) errors.push("best-picks list is empty");

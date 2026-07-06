@@ -236,3 +236,16 @@ export function screeningReportPayloadBody(horizon: "long" | "mid" | "short", st
 		`Do NOT write markdown — emit ONLY the <control> JSON payload. The renderer applies formatting (001 ranking, 当前股价 column, disclaimer).`,
 	].join("\n");
 }
+
+/** Stage 18 payload prompt — HIGHLIGHTS_BEST_PICKS. Agent emits a BestPicksPayload. */
+export function bestPicksPayloadBody(state: StockAnalysisState): string {
+	return [
+		`Emit the JSON payload for HIGHLIGHTS_BEST_PICKS — universe=${state.universe}.`,
+		`Group the top picks from the judge-panel + scoring outputs by position type.`,
+		`Emit <control> JSON with a "bestPicks" key matching the BestPicksPayload schema:`,
+		`- groups: [{type: "core"|"satellite"|"tactical", label (核心仓位推荐 / 成长卫星推荐 / 期权投机推荐), picks: [{rank, ticker, name, price (current), currency, composite?, conviction?, thesis (≤2 sentences), kill_switch, catalyst?, framework_consensus?, adversary_validation?, caution?}]}] — rank 1 = top pick overall; EVERY pick has a current price`,
+		`- complementarity: {industry_concentration, style_homogeneity, notes?} — 组合互补性检查 (concentration + style homogeneity)`,
+		`- caution_notes?: [string] — ⚠️ flags for risky picks`,
+		`Do NOT write markdown — emit ONLY the <control> JSON payload.`,
+	].join("\n");
+}

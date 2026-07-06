@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.5] - 2026-07-05
+
+### Added
+- Stage 18 HIGHLIGHTS_BEST_PICKS now renders from a BestPicksPayload via
+  templates/best-picks.njk (grouped 核心仓位/成长卫星/期权投机 table + 组合互补性
+  check + caution notes + exact disclaimer) — same render default as Stage 17
+  (STOCK_ANALYSIS_RENDER_REPORTS=0 reverts to the markdown writer).
+- forensicChecks() TS validator (ports validate_report.py gate_forensic_checks):
+  Beneish/Altman/Piotroski presence from metrics.json, wired into gate-reports.
+- BestPicksPayload schema + bestPicksPayloadBody prompt.
+
+### Notes
+- validate_report.py is now retired on the render path: freshness, conviction
+  consistency, kill-switch falsifiability, short-term 三轴, and forensic presence
+  all run in TS. The fact_check gate is DEFERRED — it cross-references
+  raw-data.json, whose shape is inconsistent across runs (per the data census);
+  it will be ported once raw-data.json is stabilized.
+
 ## [0.1.4] - 2026-07-05
 
 ### Changed

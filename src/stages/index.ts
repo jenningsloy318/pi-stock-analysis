@@ -32,11 +32,11 @@ import { isAshTicker } from "../helpers.ts";
 import {
 	stagePrompt, dataCollectorBody, sectorScreenerBody, companyScreenerBody,
 	roadmapWalkerBody, perCompanyAnalystBody, scorerBody, adversarialBody,
-	judgePanelBody, reportWriterBody, bestPicksBody, reportPayloadBody, screeningReportPayloadBody,
+	judgePanelBody, reportWriterBody, bestPicksBody, reportPayloadBody, screeningReportPayloadBody, bestPicksPayloadBody,
 } from "../prompts.ts";
 import { ensurePythonEnv } from "../scripts.ts";
-import { renderReportsTask, renderScreeningReportsTask } from "../render-node.ts";
-import { EquityReportPayload, ScreeningReportPayload } from "../render-schemas.ts";
+import { renderDocTask, renderReportsTask, renderScreeningReportsTask } from "../render-node.ts";
+import { EquityReportPayload, ScreeningReportPayload, BestPicksPayload } from "../render-schemas.ts";
 
 // ─── Predicates ─────────────────────────────────────────────────────────────
 
@@ -276,6 +276,20 @@ const bestPicksStage = writerTask({
 	buildPrompt: (s) => stagePrompt(s, "stage-18", bestPicksBody(s), { controlKeys: ["bestPicks"] }),
 });
 
+/** Stage 18 (rendered) — HIGHLIGHTS_BEST_PICKS.md from a BestPicksPayload via
+ *  templates/best-picks.njk. */
+const bestPicksRenderStage = task(renderDocTask({
+	id: "stage-18",
+	label: "Stage 18 — Best Picks Highlight (rendered)",
+	agent: "equity-report-writer",
+	controlKeys: ["bestPicks"],
+	payloadKey: "bestPicks",
+	schema: BestPicksPayload,
+	templateName: "best-picks.njk",
+	outputPath: (s) => join(s.reportsDir, "HIGHLIGHTS_BEST_PICKS.md"),
+	buildPrompt: (s) => stagePrompt(s, "stage-18", bestPicksPayloadBody(s), { controlKeys: ["bestPicks"] }),
+}));
+
 /** Stage 19 — Cleanup (ALWAYS last). Removes intermediate files; keeps tracking +
  *  final reports + HIGHLIGHTS_BEST_PICKS.md. */
 const cleanupStage = task({
@@ -327,7 +341,10 @@ const gateReports = gate(
 
 const gateBestPicks = gate(
 	{ validate: gateValidator("gate-best-picks", "stage-18"), attempts: 4, feedbackKey: "bestPicks" },
-	task(bestPicksStage),
+	branch(
+		() => process.env.STOCK_ANALYSIS_RENDER_REPORTS !== "0",
+		{ yes: bestPicksRenderStage, no: task(bestPicksStage) },
+	),
 );
 
 // ─── The common tail: critic → report-validation-gate → best-picks-gate → cleanup ─

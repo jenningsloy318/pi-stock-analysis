@@ -12,6 +12,7 @@ import {
 	killSwitchFalsifiable,
 	validateRenderedReport,
 	dataFreshness,
+	forensicChecks,
 } from "../src/validators.ts";
 import { runHelper } from "../src/helpers.ts";
 
@@ -149,5 +150,27 @@ describe("dataFreshness (ported gate_data_freshness)", () => {
 		mkdirSync(dir, { recursive: true });
 		writeFileSync(`${dir}/a.json`, JSON.stringify({ foo: 1 }));
 		expect(dataFreshness(dir).ok).toBe(true);
+	});
+});
+
+describe("forensicChecks (ported gate_forensic_checks)", () => {
+	it("passes when Beneish/Altman/Piotroski are all present", () => {
+		const dir = "/tmp/pi-stock-forensic-ok";
+		rmSync(dir, { recursive: true, force: true });
+		mkdirSync(dir, { recursive: true });
+		writeFileSync(`${dir}/metrics.json`, JSON.stringify({ beneish_mscore: { mscore: -2.5 }, altman_zscore: { zscore: 3.2 }, piotroski_fscore: { fscore: 7 } }));
+		expect(forensicChecks(dir).ok).toBe(true);
+	});
+	it("fails when a score is absent", () => {
+		const dir = "/tmp/pi-stock-forensic-miss";
+		rmSync(dir, { recursive: true, force: true });
+		mkdirSync(dir, { recursive: true });
+		writeFileSync(`${dir}/metrics.json`, JSON.stringify({ beneish_mscore: { mscore: -2.5 } }));
+		const v = forensicChecks(dir);
+		expect(v.ok).toBe(false);
+		expect(v.errors.join(" ")).toMatch(/Altman|Piotroski/);
+	});
+	it("skips when metrics.json is absent", () => {
+		expect(forensicChecks("/nonexistent-forensic-xyz-789").ok).toBe(true);
 	});
 });
