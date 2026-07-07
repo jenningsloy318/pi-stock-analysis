@@ -173,15 +173,36 @@ function formatSummary(s: RunSummary, cwd?: string): string[] {
 
 // ─── TUI workflow dashboard (idiomatic Pi setWidget pattern) ────────────────
 
-/** Format the workflow dashboard widget lines. Pure/testable: the TUI widget
- *  renders these via ctx.ui.setWidget. Icon per status, a done/total header,
- *  the full accumulated progress feed (no truncation), and the esc hint. */
-export function formatDashboardLines(entries: Array<{ id: string; label: string; status: string }>, progressLines: string[] = []): string[] {
+/** Truncate to a single line of at most `max` visible chars. */
+function truncateActivity(s: string, max = 100): string {
+	const oneLine = s.replace(/\s+/g, " ").trim();
+	return oneLine.length > max ? `${oneLine.slice(0, max - 1)}…` : oneLine;
+}
+
+/** Pad or truncate a string to exactly `w` visible chars. */
+export function padTruncate(s: string, w: number): string {
+	return s.length >= w ? `${s.slice(0, Math.max(1, w - 1))}…` : s + " ".repeat(w - s.length);
+}
+
+/** Pack stage entries into a column layout for the dashboard widget.
+ *  Pure/testable: Pi calls render(width) with the real terminal width, so all
+ *  stages fit into columns (no summary/drop). Header shows done/total + the
+ *  current running stage; one activity line shows what's happening now.
+ *  Detailed logs stay in the streaming output (onUpdate), NOT here. */
+export function packDashboardLines(entries: Array<{ id: string; label: string; status: string }>, activity: string | undefined, width: number): string[] {
 	const icon = (st: string) => (st === "ok" ? "✔" : st === "failed" ? "⚠" : st === "skipped" ? "↷" : st === "running" ? "●" : "·");
 	const done = entries.filter((e) => e.status !== "running").length;
-	const lines = [`stock-analysis · ${done}/${entries.length} stages`, ...entries.map((e) => `  ${icon(e.status)} ${e.label}`)];
-	if (progressLines.length > 0) lines.push(...progressLines);
-	lines.push("  esc to abort");
+	const running = entries.find((e) => e.status === "running");
+	const head = `stock-analysis · ${done}/${entries.length}${running ? ` · ${icon(running.status)} ${running.label}` : ""}  (esc to abort)`;
+	const lines = [head];
+	const a = truncateActivity(activity ?? "");
+	if (a) lines.push(`▶ ${a}`);
+	const CELL = 36;
+	const cols = Math.max(1, Math.floor(Math.max(20, width - 2) / CELL));
+	const cell = (e: { label: string; status: string }) => padTruncate(`${icon(e.status)} ${e.label}`, CELL - 2);
+	for (let i = 0; i < entries.length; i += cols) {
+		lines.push("  " + entries.slice(i, i + cols).map(cell).join(""));
+	}
 	return lines;
 }
 
@@ -242,23 +263,27 @@ export default function activate(pi: ExtensionAPI): void {
 			const DASHBOARD_KEY = "stock-analysis";
 			const dashboardStages = new Map<string, { label: string; status: string }>();
 			const dashboardOrder: string[] = [];
+			let dashboardActivity = "";
 			let lastWidget = 0;
 			const WIDGET_MS = 200;
 			const renderDashboard = () => {
 				if (ctx?.mode !== "tui") return; // no-op in print/json/rpc/headless
 				const entries = dashboardOrder.map((id) => ({ id, ...dashboardStages.get(id)! }));
-				// Show the FULL progress feed — no truncation.
-				const progress = live ? [...transcript, live] : transcript;
-				const lines = formatDashboardLines(entries, progress);
-				try { ctx?.ui?.setWidget?.(DASHBOARD_KEY, lines); } catch { /* best-effort */ }
+				const activity = dashboardActivity;
+				// Function form: Pi calls render(width) with the real terminal width, so
+				// packDashboardLines fits ALL stages into columns (no drop/truncate).
+				try {
+					ctx?.ui?.setWidget?.(DASHBOARD_KEY, () => ({ render: (w: number) => packDashboardLines(entries, activity, w), invalidate: () => {} }));
+				} catch { /* best-effort */ }
 			};
 			const renderDashboardThrottled = () => { const now = Date.now(); if (now - lastWidget >= WIDGET_MS) { renderDashboard(); lastWidget = now; } };
 
 			const sink = {
-				phase: (label: string) => { finalizeLive(); transcript.push(`▶ ${label}`); renderDashboard(); flush(); },
-				log: (message: string) => { finalizeLive(); transcript.push(`  ${message}`); renderDashboardThrottled(); flush(); },
+				phase: (label: string) => { finalizeLive(); transcript.push(`▶ ${label}`); dashboardActivity = label; renderDashboard(); flush(); },
+				log: (message: string) => { finalizeLive(); transcript.push(`  ${message}`); dashboardActivity = message; renderDashboardThrottled(); flush(); },
 				text: (partial: string) => {
 					live = partial;
+					dashboardActivity = partial;
 					const now = Date.now();
 					if (now - lastFlush >= FLUSH_MS) { flush(); lastFlush = now; renderDashboardThrottled(); }
 				},
@@ -282,8 +307,8 @@ export default function activate(pi: ExtensionAPI): void {
 						signal,
 					},
 				);
-				const lines = formatSummary(summary, process.cwd());
-				// Preserve the full run log to disk (the live display is a rolling tail).
+				const summaryLines = formatSummary(summary, process.cwd());
+				// Preserve the full run log to disk.
 				let logPath = "";
 				try {
 					const logDir = join(process.cwd(), ".stock-analysis-logs");
@@ -291,9 +316,12 @@ export default function activate(pi: ExtensionAPI): void {
 					logPath = join(logDir, `${state.runId}.log`);
 					writeFileSync(logPath, transcript.join("\n") + "\n");
 				} catch { /* best-effort */ }
-				if (logPath) lines.push(`Full run log: ${logPath}`);
+				if (logPath) summaryLines.push(`Full run log: ${logPath}`);
 				const isError = summary.status === "failed";
-				return { content: [{ type: "text", text: lines.join("\n") }], isError, details: { summary } };
+				// Don't replace the detailed logs — append the summary below them.
+				finalizeLive();
+				const fullContent = [...transcript, "", ...summaryLines].join("\n");
+				return { content: [{ type: "text", text: fullContent }], isError, details: { summary } };
 			} catch (err) {
 				const message = err instanceof Error ? err.message : String(err);
 				return { content: [{ type: "text", text: `❌ stock-analysis pipeline failed: ${message}` }], isError: true, details: {} };

@@ -112,12 +112,12 @@ const companyScreenerStage = writerTask({
 });
 
 // ─── Per-company analyst stages (5-15) ──────────────────────────────────────
-// Each wrapped in retry({attempts:10}) for the retry-on-null rule. The current
+// Each wrapped in retry({attempts:5}) for the retry-on-null rule. The current
 // company is exposed at state.company by the enclosing map() node.
 
 function analystStage(stageId: string, label: string, agent: string): Node {
 	return retry(
-		{ attempts: 10 },
+		{ attempts: 5 },
 		task(writerTask({
 			id: stageId,
 			label,
@@ -187,7 +187,7 @@ const adversarialStage: Node = map(
 		into: "adversarial",
 	},
 	retry(
-		{ attempts: 10 },
+		{ attempts: 5 },
 		task(writerTask({
 			id: "stage-16.6",
 			label: "Stage 16.6 — Adversarial Verify",
@@ -200,7 +200,7 @@ const adversarialStage: Node = map(
 
 /** 16.7 — Judge Panel: 4 framework lenses in parallel. */
 const judgePanelStage: Node = retry(
-	{ attempts: 10 },
+	{ attempts: 5 },
 	task(writerTask({
 		id: "stage-16.7",
 		label: "Stage 16.7 — Judge Panel",

@@ -1,10 +1,10 @@
 /**
- * TUI workflow dashboard — formatDashboardLines (pure renderer) + stage-event
+ * TUI workflow dashboard — packDashboardLines (pure renderer) + stage-event
  * flow through the node algebra. Hermetic: no pi spawns, no TUI, no network.
  */
 
 import { describe, it, expect } from "vitest";
-import { formatDashboardLines } from "../src/extension.ts";
+import { packDashboardLines, padTruncate } from "../src/extension.ts";
 import { task, sequence } from "../src/nodes.ts";
 import { runWorkflow } from "../src/workflow.ts";
 import { STOCK_ANALYSIS_WORKFLOW } from "../src/stages/index.ts";
@@ -17,45 +17,59 @@ import type { StockAnalysisState, StageProgressEvent } from "../src/types.ts";
 
 const E = (id: string, label: string, status: string) => ({ id, label, status });
 
-describe("formatDashboardLines", () => {
-	it("renders a header with done/total count and status icons", () => {
-		const lines = formatDashboardLines([
+describe("packDashboardLines", () => {
+	it("header shows done/total + current running stage + esc hint", () => {
+		const lines = packDashboardLines([
 			E("stage-0", "Stage 0 — Setup", "ok"),
-			E("stage-1", "Stage 1 — Data Collection", "running"),
-			E("stage-2", "Stage 2 — Screening", "skipped"),
-		]);
-		// 2 of 3 are terminal (ok + skipped); running is not counted as done.
-		expect(lines[0]).toBe("stock-analysis · 2/3 stages");
-		expect(lines[1]).toContain("✔ Stage 0");
-		expect(lines[2]).toContain("● Stage 1");
-		expect(lines[3]).toContain("↷ Stage 2");
+			E("stage-1", "Stage 1 — Data", "running"),
+			E("stage-2", "Stage 2 — Screen", "skipped"),
+		], undefined, 120);
+		// 2 of 3 terminal; running stage shown in header.
+		expect(lines[0]).toContain("2/3");
+		expect(lines[0]).toContain("● Stage 1 — Data");
+		expect(lines[0]).toContain("esc to abort");
 	});
 
 	it("uses ⚠ for failed stages", () => {
-		const lines = formatDashboardLines([E("stage-9", "Stage 9 — Macro", "failed")]);
-		expect(lines[1]).toContain("⚠ Stage 9");
+		const lines = packDashboardLines([E("stage-9", "Stage 9 — Macro", "failed")], undefined, 120);
+		expect(lines.some((l) => l.includes("⚠ Stage 9"))).toBe(true);
 	});
 
-	it("appends all progress lines when provided", () => {
-		const lines = formatDashboardLines([E("stage-0", "Setup", "ok")], ["▶ Analyzing AAPL", "  financials complete"]);
-		expect(lines.some((l) => l === "▶ Analyzing AAPL")).toBe(true);
-		expect(lines.some((l) => l === "  financials complete")).toBe(true);
+	it("shows one activity line when provided", () => {
+		const lines = packDashboardLines([E("stage-0", "Setup", "ok")], "Scanning GICS sub-industries", 120);
+		expect(lines.some((l) => l === "▶ Scanning GICS sub-industries")).toBe(true);
 	});
 
-	it("omits progress lines when empty", () => {
-		const lines = formatDashboardLines([E("stage-0", "Setup", "ok")]);
+	it("omits activity line when undefined", () => {
+		const lines = packDashboardLines([E("stage-0", "Setup", "ok")], undefined, 120);
 		expect(lines.some((l) => l.startsWith("▶"))).toBe(false);
 	});
 
-	it("always shows the esc-to-abort hint", () => {
-		const lines = formatDashboardLines([E("stage-0", "Setup", "running")]);
-		expect(lines[lines.length - 1]).toContain("esc to abort");
+	it("packs stages into columns based on width", () => {
+		const entries = Array.from({ length: 10 }, (_, i) => E(`s${i}`, `Stage ${i}`, "ok"));
+		const wide = packDashboardLines(entries, undefined, 200);
+		const narrow = packDashboardLines(entries, undefined, 40);
+		// Wide terminal fits more columns → fewer rows of stages.
+		const wideStageRows = wide.filter((l) => l.startsWith("  ")).length;
+		const narrowStageRows = narrow.filter((l) => l.startsWith("  ")).length;
+		expect(wideStageRows).toBeLessThan(narrowStageRows);
+		// All 10 stages appear in both.
+		for (let i = 0; i < 10; i++) {
+			expect(wide.some((l) => l.includes(`Stage ${i}`))).toBe(true);
+			expect(narrow.some((l) => l.includes(`Stage ${i}`))).toBe(true);
+		}
+	});
+});
+
+describe("padTruncate", () => {
+	it("pads short strings to width", () => {
+		expect(padTruncate("hi", 5)).toBe("hi   ");
 	});
 
-	it("does not truncate long progress lines", () => {
-		const long = "▶ " + "x".repeat(500);
-		const lines = formatDashboardLines([], [long]);
-		expect(lines.some((l) => l === long)).toBe(true);
+	it("truncates long strings with ellipsis", () => {
+		const result = padTruncate("hello world", 5);
+		expect(result.length).toBe(5);
+		expect(result).toContain("…");
 	});
 });
 

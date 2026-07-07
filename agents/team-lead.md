@@ -5,7 +5,7 @@ model: inherit
 kind: local
 tools:
   - "*"
-max_turns: 100
+max_turns: 40
 timeout_mins: 60
 ---
 
