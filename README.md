@@ -117,6 +117,9 @@ the Python via the thin `src/scripts.ts` bridge.
 
 ## Architecture
 
+> For diagrams (layered view, per-mode stage flow, data flow), see
+> [`docs/architecture.md`](docs/architecture.md).
+
 ```
 extension.ts  ──►  registers  stock_analysis tool + /stock-analysis command
       │                       (arg parser: --mode flag > trigger phrase > default)
@@ -198,11 +201,32 @@ faster in-process backend via the pi SDK.
 ```bash
 npm run typecheck   # tsc --noEmit
 npm test            # vitest — hermetic, no pi spawns, no network, no uv
+npm run test:e2e    # adds the recorded-fixture e2e (mock agent runner)
 ```
 
 The suite covers: package structure, control-flow algebra semantics, mode
 dispatch, arg parser, runScript wrapper (mocked spawn), A-share ticker
-normalization, control-JSON extraction, and workflow composition.
+normalization, control-JSON extraction, workflow composition, the Stage 19
+cleanup sweep, and an end-to-end `analyze`-mode run driven by pre-recorded
+agent fixtures (`tests/e2e/`). The e2e test is gated on `E2E=1` so the default
+`npm test` stays fast; it traverses the full Stage 0→19 graph with no `pi`
+spawns and asserts real `.md` reports are rendered.
+
+## Releasing
+
+Use `scripts/bump-version.sh` to keep the version in sync across `package.json`,
+`skills/stock-analysis/SKILL.md`, and `CHANGELOG.md`:
+
+```bash
+scripts/bump-version.sh 0.2.0
+# 1. Edit the CHANGELOG.md '### Added' stub with real entries.
+# 2. git commit -am "chore: bump version to 0.2.0"
+# 3. git tag v0.2.0 && git push --tags
+# 4. npm publish
+```
+
+The script is idempotent — safe to re-run — and only touches manifests. It
+never runs git, never publishes, never talks to the network.
 
 ## License
 

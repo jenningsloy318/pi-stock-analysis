@@ -2,7 +2,7 @@
 name: stock-analysis
 description: "Self-contained pi control-flow workflow for unified equity research. 5 modes (pipeline/screen/analyze/compare/walk) × 19 stages: screen GICS sub-industries → deep-dive companies → scoring → adversarial verify → judge panel → 3-horizon reports → best picks. Spawns specialist pi subagents; deterministic calculations run via verbatim Python scripts."
 author: Jennings Liu
-version: "0.1.0"
+version: "0.1.7"
 license: MIT
 ---
 
