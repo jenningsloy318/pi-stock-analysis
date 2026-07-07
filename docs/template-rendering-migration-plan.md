@@ -1,6 +1,11 @@
 # Plan: Schema-driven, template-rendered stage documents
 
-**Status:** Proposal — awaiting decision on engine + phase order
+**Status:** ✅ Complete (v0.2.0). The render path is the only path — the markdown
+fallback (`STOCK_ANALYSIS_RENDER_REPORTS=0`), `scripts/validate_report.py`,
+and the plain-markdown instruction templates (`equity-report.md`,
+`screening-report.md`) have been removed. This document is retained as the
+historical design record.
+
 **Goal:** Replace agent-freeform documents (messy → validator fails → gate
 exhaustion) with a deterministic **data payload (schema-validated) + template
 → rendered document** pipeline. Formatting becomes correct *by construction*;
