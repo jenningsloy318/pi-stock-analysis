@@ -1,10 +1,9 @@
 /**
- * TUI workflow dashboard — packDashboardLines (pure renderer) + stage-event
- * flow through the node algebra. Hermetic: no pi spawns, no TUI, no network.
+ * TUI workflow dashboard — stage-event flow through the node algebra.
+ * Hermetic: no pi spawns, no TUI, no network.
  */
 
 import { describe, it, expect } from "vitest";
-import { packDashboardLines, padTruncate } from "../src/extension.ts";
 import { task, sequence } from "../src/nodes.ts";
 import { runWorkflow } from "../src/workflow.ts";
 import { STOCK_ANALYSIS_WORKFLOW } from "../src/stages/index.ts";
@@ -14,61 +13,6 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import type { StockAnalysisState, StageProgressEvent } from "../src/types.ts";
-
-const E = (id: string, label: string, status: string) => ({ id, label, status });
-
-describe("packDashboardLines", () => {
-	it("header shows done/total + current running stage + esc hint", () => {
-		const lines = packDashboardLines([
-			E("stage-0", "Stage 0 — Setup", "ok"),
-			E("stage-1", "Stage 1 — Data", "running"),
-			E("stage-2", "Stage 2 — Screen", "skipped"),
-		], undefined, 120);
-		// 2 of 3 terminal; running stage shown in header.
-		expect(lines[0]).toContain("2/3");
-		expect(lines[0]).toContain("● Stage 1 — Data");
-		expect(lines[0]).toContain("esc to abort");
-	});
-
-	it("uses ⚠ for failed stages", () => {
-		const lines = packDashboardLines([E("stage-9", "Stage 9 — Macro", "failed")], undefined, 120);
-		expect(lines.some((l) => l.includes("⚠ Stage 9"))).toBe(true);
-	});
-
-	it("shows one activity line when provided", () => {
-		const lines = packDashboardLines([E("stage-0", "Setup", "ok")], "Scanning GICS sub-industries", 120);
-		expect(lines.some((l) => l === "▶ Scanning GICS sub-industries")).toBe(true);
-	});
-
-	it("omits activity line when undefined", () => {
-		const lines = packDashboardLines([E("stage-0", "Setup", "ok")], undefined, 120);
-		expect(lines.some((l) => l.startsWith("▶"))).toBe(false);
-	});
-
-	it("lists stages one per line (single column)", () => {
-		const entries = Array.from({ length: 10 }, (_, i) => E(`s${i}`, `Stage ${i}`, "ok"));
-		const lines = packDashboardLines(entries, undefined, 200);
-		// Each stage is on its own line (no column packing).
-		const stageLines = lines.filter((l) => /^  [✔●⚠↷·]/.test(l));
-		expect(stageLines.length).toBe(10);
-		// All 10 stages present.
-		for (let i = 0; i < 10; i++) {
-			expect(lines.some((l) => l.includes(`Stage ${i}`))).toBe(true);
-		}
-	});
-});
-
-describe("padTruncate", () => {
-	it("pads short strings to width", () => {
-		expect(padTruncate("hi", 5)).toBe("hi   ");
-	});
-
-	it("truncates long strings with ellipsis", () => {
-		const result = padTruncate("hello world", 5);
-		expect(result.length).toBe(5);
-		expect(result).toContain("…");
-	});
-});
 
 describe("stage-event flow through the pipeline", () => {
 	it("emits running → ok stage events for every task() node", async () => {

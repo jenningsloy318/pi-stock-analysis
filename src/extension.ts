@@ -11,7 +11,8 @@
  *     dispatches the task to the agent, which invokes the `stock_analysis` tool.
  */
 
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI, Theme } from "@earendil-works/pi-coding-agent";
+import { Text } from "@earendil-works/pi-tui";
 import { Type } from "typebox";
 import { mkdirSync, writeFileSync, existsSync, readFileSync } from "node:fs";
 import { join, dirname, resolve } from "node:path";
@@ -172,35 +173,9 @@ function formatSummary(s: RunSummary, cwd?: string): string[] {
 }
 
 // ─── TUI workflow dashboard (idiomatic Pi setWidget pattern) ────────────────
-
-/** Truncate to a single line of at most `max` visible chars. */
-function truncateActivity(s: string, max = 100): string {
-	const oneLine = s.replace(/\s+/g, " ").trim();
-	return oneLine.length > max ? `${oneLine.slice(0, max - 1)}…` : oneLine;
-}
-
-/** Pad or truncate a string to exactly `w` visible chars. */
-export function padTruncate(s: string, w: number): string {
-	return s.length >= w ? `${s.slice(0, Math.max(1, w - 1))}…` : s + " ".repeat(w - s.length);
-}
-
-/** List stage entries as a single-column dashboard for the widget.
- *  Pure/testable. Header shows done/total + the current running stage; one
- *  activity line shows what's happening now. Detailed logs stay in the
- *  streaming output (onUpdate), NOT here. */
-export function packDashboardLines(entries: Array<{ id: string; label: string; status: string }>, activity: string | undefined, _width: number): string[] {
-	const icon = (st: string) => (st === "ok" ? "✔" : st === "failed" ? "⚠" : st === "skipped" ? "↷" : st === "running" ? "●" : "·");
-	const done = entries.filter((e) => e.status !== "running").length;
-	const running = entries.find((e) => e.status === "running");
-	const head = `stock-analysis · ${done}/${entries.length}${running ? ` · ${icon(running.status)} ${running.label}` : ""}  (esc to abort)`;
-	const lines = [head];
-	const a = truncateActivity(activity ?? "");
-	if (a) lines.push(`▶ ${a}`);
-	for (const e of entries) {
-		lines.push(`  ${icon(e.status)} ${e.label}`);
-	}
-	return lines;
-}
+// The widget (setWidget) is a simple inline stage tracker, single-column,
+// rendered directly in execute(). The final result uses renderResult() for a
+// themed 3-section display (dimmed logs / stage progress / summary).
 
 // ─── Extension activation ───────────────────────────────────────────────────
 
@@ -259,28 +234,41 @@ export default function activate(pi: ExtensionAPI): void {
 			const DASHBOARD_KEY = "stock-analysis";
 			const dashboardStages = new Map<string, { label: string; status: string }>();
 			const dashboardOrder: string[] = [];
-			let dashboardActivity = "";
 			let lastWidget = 0;
 			const WIDGET_MS = 200;
 			const renderDashboard = () => {
-				if (ctx?.mode !== "tui") return; // no-op in print/json/rpc/headless
-				const entries = dashboardOrder.map((id) => ({ id, ...dashboardStages.get(id)! }));
-				const activity = dashboardActivity;
-				// Function form: Pi calls render(width) with the real terminal width, so
-				// packDashboardLines fits ALL stages into columns (no drop/truncate).
-				try {
-					ctx?.ui?.setWidget?.(DASHBOARD_KEY, () => ({ render: (w: number) => packDashboardLines(entries, activity, w), invalidate: () => {} }));
-				} catch { /* best-effort */ }
+				if (ctx?.mode !== "tui") return;
+				const icon = (st: string) => (st === "ok" ? "✔" : st === "failed" ? "⚠" : st === "skipped" ? "↷" : st === "running" ? "●" : "·");
+				const entries = dashboardOrder.map((id) => dashboardStages.get(id)).filter(Boolean) as Array<{ label: string; status: string }>;
+				const done = entries.filter((e) => e.status !== "running").length;
+				const running = entries.find((e) => e.status === "running");
+				// 2-column layout, column-first (left column fills before right).
+				const COLS = 2;
+				const rows = Math.ceil(entries.length / COLS);
+				const col = (c: number) => entries.slice(c * rows, (c + 1) * rows);
+				const cellWidth = 38;
+				const pad = (s: string, w: number) => s.length >= w ? s.slice(0, w - 1) + "…" : s + " ".repeat(w - s.length);
+				const lines = [
+					`stock-analysis · ${done}/${entries.length}${running ? ` · ${icon(running.status)} ${running.label}` : ""}  (esc to abort)`,
+				];
+				for (let r = 0; r < rows; r++) {
+					const cells: string[] = [];
+					for (let c = 0; c < COLS; c++) {
+						const e = col(c)[r];
+						if (e) cells.push(pad(`  ${icon(e.status)} ${e.label}`, cellWidth));
+					}
+					lines.push(cells.join(""));
+				}
+				try { ctx?.ui?.setWidget?.(DASHBOARD_KEY, lines); } catch { /* best-effort */ }
 			};
 			const renderDashboardThrottled = () => { const now = Date.now(); if (now - lastWidget >= WIDGET_MS) { renderDashboard(); lastWidget = now; } };
 
 			const sink = {
-				phase: (label: string) => { finalizeLive(); transcript.push(`▶ ${label}`); dashboardActivity = label; renderDashboard(); flush(); },
-				log: (message: string) => { finalizeLive(); transcript.push(`  ${message}`); dashboardActivity = message; renderDashboardThrottled(); flush(); },
+				phase: (label: string) => { finalizeLive(); transcript.push(`▶ ${label}`); renderDashboard(); flush(); },
+				log: (message: string) => { finalizeLive(); transcript.push(`  ${message}`); renderDashboardThrottled(); flush(); },
 				text: (partial: string) => {
 					live = partial;
-					dashboardActivity = partial;
-					const now = Date.now();
+						const now = Date.now();
 					if (now - lastFlush >= FLUSH_MS) { flush(); lastFlush = now; renderDashboardThrottled(); }
 				},
 				stage: (info: { id: string; label: string; status: string }) => {
@@ -313,11 +301,18 @@ export default function activate(pi: ExtensionAPI): void {
 					writeFileSync(logPath, transcript.join("\n") + "\n");
 				} catch { /* best-effort */ }
 				if (logPath) summaryLines.push(`Full run log: ${logPath}`);
+				if (logPath) summaryLines.push(`Full run log: ${logPath}`);
 				const isError = summary.status === "failed";
-				// Don't replace the detailed logs — append the summary below them.
+				// Stages for renderResult’s stage-progress section, from the live tracker.
 				finalizeLive();
-				const fullContent = [...transcript, "", ...summaryLines].join("\n");
-				return { content: [{ type: "text", text: fullContent }], isError, details: { summary } };
+				const stages = dashboardOrder.map((id) => ({ id, ...(dashboardStages.get(id) ?? { label: id, status: "·" }) }));
+				// content = text fallback (print/json/headless); details = data for renderResult (TUI).
+				const fallback = [...summaryLines];
+				return {
+					content: [{ type: "text", text: fallback.join("\n") }],
+					isError,
+					details: { summary, summaryLines, transcriptTail: transcript.slice(-50), stages, logPath },
+				};
 			} catch (err) {
 				const message = err instanceof Error ? err.message : String(err);
 				return { content: [{ type: "text", text: `❌ stock-analysis pipeline failed: ${message}` }], isError: true, details: {} };
@@ -325,6 +320,37 @@ export default function activate(pi: ExtensionAPI): void {
 				// Always clear the dashboard widget when the run ends (success or failure).
 				try { ctx?.ui?.setWidget?.(DASHBOARD_KEY, undefined); } catch { /* best-effort */ }
 			}
+		},
+		// Pi-native result rendering: 3 sections. §1 detail logs DIMMED (thought-like);
+		// §2 stage progress NORMAL; §3 summary.
+		renderResult(result, _opts: any, theme: Theme) {
+			const d = (result.details ?? {}) as {
+				summaryLines?: string[];
+				transcriptTail?: string[];
+				stages?: Array<{ label: string; status: string }>;
+				logPath?: string;
+			};
+			// During streaming (onUpdate), details are empty — fall back to plain content.
+			if (!d.stages?.length) {
+				const text = result.content[0];
+				return new Text(text?.type === "text" ? text.text : "", 0, 0);
+			}
+			const icon = (st: string) => (st === "ok" ? "✔" : st === "failed" ? "⚠" : st === "skipped" ? "↷" : st === "running" ? "●" : "·");
+			const parts: string[] = [];
+			// §1 detail log — DIMMED (like agent thought progress; persisted, not transient)
+			parts.push(theme.fg("dim", "── detail log (last 50 lines) ──"));
+			for (const line of (d.transcriptTail ?? [])) parts.push(theme.fg("dim", line));
+			if (d.logPath) parts.push(theme.fg("dim", `(full log: ${d.logPath})`));
+			// §2 stage progress — NORMAL (like the real answer)
+			parts.push("");
+			parts.push(theme.bold("── stage progress ──"));
+			for (const s of (d.stages ?? [])) parts.push(`  ${icon(s.status)} ${s.label}`);
+			// §3 summary — NORMAL/bold
+			if (d.summaryLines?.length) {
+				parts.push("");
+				parts.push(...d.summaryLines);
+			}
+			return new Text(parts.join("\n"), 0, 0);
 		},
 	});
 
