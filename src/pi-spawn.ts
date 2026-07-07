@@ -180,7 +180,7 @@ function runPi(args: string[], cwd: string, signal: AbortSignal | undefined, lab
 				const a = assistantFromMessageEnd(ev);
 				if (a) {
 					if (a.text) { lastAssistantText = a.text; if (a.model) lastModel = a.model; }
-					if (onProgress && currentText.trim()) { onProgress.event(stripControl(currentText).trim()); currentText = ""; }
+					if (onProgress) currentText = "";
 					continue;
 				}
 				if (!onProgress) continue;
@@ -190,7 +190,7 @@ function runPi(args: string[], cwd: string, signal: AbortSignal | undefined, lab
 					currentText = se.text;
 					onProgress.text(stripControl(currentText));
 				} else {
-					if (currentText.trim()) { onProgress.event(stripControl(currentText).trim()); currentText = ""; }
+					currentText = "";
 					if (se.kind === "tool") onProgress.event(`→ ${se.summary}`);
 				}
 			}
