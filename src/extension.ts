@@ -173,21 +173,14 @@ function formatSummary(s: RunSummary, cwd?: string): string[] {
 
 // ─── TUI workflow dashboard (idiomatic Pi setWidget pattern) ────────────────
 
-/** Truncate to a single line of at most `max` visible chars (for the activity row). */
-function truncateActivity(s: string, max = 100): string {
-	const oneLine = s.replace(/\s+/g, " ").trim();
-	return oneLine.length > max ? `${oneLine.slice(0, max - 1)}…` : oneLine;
-}
-
 /** Format the workflow dashboard widget lines. Pure/testable: the TUI widget
  *  renders these via ctx.ui.setWidget. Icon per status, a done/total header,
- *  and an optional live-activity row (what the current agent is doing now). */
-export function formatDashboardLines(entries: Array<{ id: string; label: string; status: string }>, activity?: string): string[] {
+ *  the full accumulated progress feed (no truncation), and the esc hint. */
+export function formatDashboardLines(entries: Array<{ id: string; label: string; status: string }>, progressLines: string[] = []): string[] {
 	const icon = (st: string) => (st === "ok" ? "✔" : st === "failed" ? "⚠" : st === "skipped" ? "↷" : st === "running" ? "●" : "·");
 	const done = entries.filter((e) => e.status !== "running").length;
 	const lines = [`stock-analysis · ${done}/${entries.length} stages`, ...entries.map((e) => `  ${icon(e.status)} ${e.label}`)];
-	const a = truncateActivity(activity ?? "");
-	if (a) lines.push(`  ▶ ${a}`);
+	if (progressLines.length > 0) lines.push(...progressLines);
 	lines.push("  esc to abort");
 	return lines;
 }
@@ -237,14 +230,10 @@ export default function activate(pi: ExtensionAPI): void {
 			let live = "";
 			let lastFlush = 0;
 			const FLUSH_MS = 80;
-			const TAIL_LINES = 400;
 			const finalizeLive = () => { if (live) { transcript.push(live); live = ""; } };
 			const flush = () => {
 				const all = live ? [...transcript, live] : transcript;
-				const body = all.length > TAIL_LINES
-					? `… ${all.length - TAIL_LINES} earlier lines trimmed (full log saved to .stock-analysis-logs/ at run end) …\n` + all.slice(-TAIL_LINES).join("\n")
-					: all.join("\n");
-				onUpdate?.({ content: [{ type: "text", text: body }], details: {} });
+				onUpdate?.({ content: [{ type: "text", text: all.join("\n") }], details: {} });
 			};
 
 			// Workflow dashboard (idiomatic Pi setWidget pattern — see plan-mode).
@@ -253,23 +242,23 @@ export default function activate(pi: ExtensionAPI): void {
 			const DASHBOARD_KEY = "stock-analysis";
 			const dashboardStages = new Map<string, { label: string; status: string }>();
 			const dashboardOrder: string[] = [];
-			let dashboardActivity = "";
 			let lastWidget = 0;
 			const WIDGET_MS = 200;
 			const renderDashboard = () => {
 				if (ctx?.mode !== "tui") return; // no-op in print/json/rpc/headless
 				const entries = dashboardOrder.map((id) => ({ id, ...dashboardStages.get(id)! }));
-				const lines = formatDashboardLines(entries, dashboardActivity);
+				// Show the FULL progress feed — no truncation.
+				const progress = live ? [...transcript, live] : transcript;
+				const lines = formatDashboardLines(entries, progress);
 				try { ctx?.ui?.setWidget?.(DASHBOARD_KEY, lines); } catch { /* best-effort */ }
 			};
 			const renderDashboardThrottled = () => { const now = Date.now(); if (now - lastWidget >= WIDGET_MS) { renderDashboard(); lastWidget = now; } };
 
 			const sink = {
-				phase: (label: string) => { finalizeLive(); transcript.push(`▶ ${label}`); dashboardActivity = label; renderDashboard(); flush(); },
-				log: (message: string) => { finalizeLive(); transcript.push(`  ${message}`); dashboardActivity = message; renderDashboardThrottled(); flush(); },
+				phase: (label: string) => { finalizeLive(); transcript.push(`▶ ${label}`); renderDashboard(); flush(); },
+				log: (message: string) => { finalizeLive(); transcript.push(`  ${message}`); renderDashboardThrottled(); flush(); },
 				text: (partial: string) => {
 					live = partial;
-				dashboardActivity = partial;
 					const now = Date.now();
 					if (now - lastFlush >= FLUSH_MS) { flush(); lastFlush = now; renderDashboardThrottled(); }
 				},

@@ -36,14 +36,15 @@ describe("formatDashboardLines", () => {
 		expect(lines[1]).toContain("⚠ Stage 9");
 	});
 
-	it("appends the live-activity row when provided", () => {
-		const lines = formatDashboardLines([E("stage-0", "Setup", "ok")], "Analyzing AAPL financials…");
-		expect(lines.some((l) => l.includes("▶ Analyzing AAPL financials…"))).toBe(true);
+	it("appends all progress lines when provided", () => {
+		const lines = formatDashboardLines([E("stage-0", "Setup", "ok")], ["▶ Analyzing AAPL", "  financials complete"]);
+		expect(lines.some((l) => l === "▶ Analyzing AAPL")).toBe(true);
+		expect(lines.some((l) => l === "  financials complete")).toBe(true);
 	});
 
-	it("omits the activity row when empty", () => {
+	it("omits progress lines when empty", () => {
 		const lines = formatDashboardLines([E("stage-0", "Setup", "ok")]);
-		expect(lines.some((l) => l.startsWith("  ▶"))).toBe(false);
+		expect(lines.some((l) => l.startsWith("▶"))).toBe(false);
 	});
 
 	it("always shows the esc-to-abort hint", () => {
@@ -51,12 +52,10 @@ describe("formatDashboardLines", () => {
 		expect(lines[lines.length - 1]).toContain("esc to abort");
 	});
 
-	it("truncates long activity to a single line", () => {
-		const long = "x".repeat(200);
-		const lines = formatDashboardLines([], long);
-		const activityLine = lines.find((l) => l.includes("▶"))!;
-		expect(activityLine.length).toBeLessThan(120);
-		expect(activityLine).toContain("…");
+	it("does not truncate long progress lines", () => {
+		const long = "▶ " + "x".repeat(500);
+		const lines = formatDashboardLines([], [long]);
+		expect(lines.some((l) => l === long)).toBe(true);
 	});
 });
 
