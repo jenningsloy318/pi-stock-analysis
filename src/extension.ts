@@ -171,6 +171,27 @@ function formatSummary(s: RunSummary, cwd?: string): string[] {
 	return lines;
 }
 
+// ─── TUI workflow dashboard (idiomatic Pi setWidget pattern) ────────────────
+
+/** Truncate to a single line of at most `max` visible chars (for the activity row). */
+function truncateActivity(s: string, max = 100): string {
+	const oneLine = s.replace(/\s+/g, " ").trim();
+	return oneLine.length > max ? `${oneLine.slice(0, max - 1)}…` : oneLine;
+}
+
+/** Format the workflow dashboard widget lines. Pure/testable: the TUI widget
+ *  renders these via ctx.ui.setWidget. Icon per status, a done/total header,
+ *  and an optional live-activity row (what the current agent is doing now). */
+export function formatDashboardLines(entries: Array<{ id: string; label: string; status: string }>, activity?: string): string[] {
+	const icon = (st: string) => (st === "ok" ? "✔" : st === "failed" ? "⚠" : st === "skipped" ? "↷" : st === "running" ? "●" : "·");
+	const done = entries.filter((e) => e.status !== "running").length;
+	const lines = [`stock-analysis · ${done}/${entries.length} stages`, ...entries.map((e) => `  ${icon(e.status)} ${e.label}`)];
+	const a = truncateActivity(activity ?? "");
+	if (a) lines.push(`  ▶ ${a}`);
+	lines.push("  esc to abort");
+	return lines;
+}
+
 // ─── Extension activation ───────────────────────────────────────────────────
 
 export default function activate(pi: ExtensionAPI): void {
@@ -204,7 +225,7 @@ export default function activate(pi: ExtensionAPI): void {
 			model: Type.Optional(Type.String({ description: "Model override for spawned specialist agents in provider/id form." })),
 			maxAgents: Type.Optional(Type.Number({ description: "Maximum specialist agent spawns. Default: 200." })),
 		}),
-		async execute(_toolCallId, params, signal, onUpdate) {
+		async execute(_toolCallId, params, signal, onUpdate, ctx) {
 			// Fail-fast input validation (ISS-04): check per-mode requirements early.
 			const mode = (params.mode as Mode | undefined) ?? "pipeline";
 			const paramErrors = validateParams({ mode, tickers: params.tickers as string[] | undefined, theme: params.theme as string | undefined });
@@ -225,13 +246,37 @@ export default function activate(pi: ExtensionAPI): void {
 					: all.join("\n");
 				onUpdate?.({ content: [{ type: "text", text: body }], details: {} });
 			};
+
+			// Workflow dashboard (idiomatic Pi setWidget pattern — see plan-mode).
+			// Always-on phase tracker above the editor, TUI-only. Stage changes render
+			// at once; high-rate text/log updates throttle at 200 ms.
+			const DASHBOARD_KEY = "stock-analysis";
+			const dashboardStages = new Map<string, { label: string; status: string }>();
+			const dashboardOrder: string[] = [];
+			let dashboardActivity = "";
+			let lastWidget = 0;
+			const WIDGET_MS = 200;
+			const renderDashboard = () => {
+				if (ctx?.mode !== "tui") return; // no-op in print/json/rpc/headless
+				const entries = dashboardOrder.map((id) => ({ id, ...dashboardStages.get(id)! }));
+				const lines = formatDashboardLines(entries, dashboardActivity);
+				try { ctx?.ui?.setWidget?.(DASHBOARD_KEY, lines); } catch { /* best-effort */ }
+			};
+			const renderDashboardThrottled = () => { const now = Date.now(); if (now - lastWidget >= WIDGET_MS) { renderDashboard(); lastWidget = now; } };
+
 			const sink = {
-				phase: (label: string) => { finalizeLive(); transcript.push(`▶ ${label}`); flush(); },
-				log: (message: string) => { finalizeLive(); transcript.push(`  ${message}`); flush(); },
+				phase: (label: string) => { finalizeLive(); transcript.push(`▶ ${label}`); dashboardActivity = label; renderDashboard(); flush(); },
+				log: (message: string) => { finalizeLive(); transcript.push(`  ${message}`); dashboardActivity = message; renderDashboardThrottled(); flush(); },
 				text: (partial: string) => {
 					live = partial;
+				dashboardActivity = partial;
 					const now = Date.now();
-					if (now - lastFlush >= FLUSH_MS) { flush(); lastFlush = now; }
+					if (now - lastFlush >= FLUSH_MS) { flush(); lastFlush = now; renderDashboardThrottled(); }
+				},
+				stage: (info: { id: string; label: string; status: string }) => {
+					if (!dashboardOrder.includes(info.id)) dashboardOrder.push(info.id);
+					dashboardStages.set(info.id, { label: info.label, status: info.status });
+					renderDashboard();
 				},
 			};
 
@@ -263,6 +308,9 @@ export default function activate(pi: ExtensionAPI): void {
 			} catch (err) {
 				const message = err instanceof Error ? err.message : String(err);
 				return { content: [{ type: "text", text: `❌ stock-analysis pipeline failed: ${message}` }], isError: true, details: {} };
+			} finally {
+				// Always clear the dashboard widget when the run ends (success or failure).
+				try { ctx?.ui?.setWidget?.(DASHBOARD_KEY, undefined); } catch { /* best-effort */ }
 			}
 		},
 	});

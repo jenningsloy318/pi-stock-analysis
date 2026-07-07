@@ -15,7 +15,7 @@ import {
 	forensicChecks,
 	factCheck,
 } from "../src/validators.ts";
-import { runHelper } from "../src/helpers.ts";
+import { runHelper } from "../src/gates.ts";
 
 const goodPayload = {
 	horizon: "long",

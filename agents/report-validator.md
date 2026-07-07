@@ -1,6 +1,6 @@
 ---
 name: report-validator
-description: "Independent report and data validator. Runs validate_report.py, data freshness checks, scoring consistency checks, and required section verification. Signals PASS/FAIL to team-lead. Never writes reports — only validates outputs from other agents."
+description: "Independent report completeness critic. Checks rendered reports for missing modality/claim/source, kill-switch falsifiability, and section coverage. The orchestrator's TS content gates handle data freshness, forensic checks, and fact-checks. Never writes reports — only flags gaps in outputs from other agents."
 model: inherit
 kind: local
 tools:
@@ -42,7 +42,7 @@ timeout_mins: 10
 
   <step n="2a" name="Data Freshness Check" condition="validation_type=data-freshness">
     Validate Stage 1 shared data output:
-    - Run: `uv run python {plugin_root}/scripts/validate_report.py {output_dir} --report-type long --output {output_dir}/validation_data_freshness.json`
+    - Data freshness is checked by the orchestrator's TS content gates (dataFreshness, forensicChecks, factCheck). Do NOT re-run those. Instead verify report-level coverage:
     - Additionally check: macro.json has retrieved_at within 30 days, sector_rs.json has retrieved_at within 7 days (for short-term) or 90 days (for long-term)
     - Check: at least 80% of required source files from SOURCE_FILES exist in {output_dir}
     - If any check fails: report specific missing/stale files with expected vs actual timestamps
@@ -77,7 +77,7 @@ timeout_mins: 10
   <step n="2d" name="Report Quality Check" condition="validation_type=report-quality">
     Validate Stage 17 final reports:
     - For each company_dir and each report type (long/mid/short):
-      Run: `uv run python {plugin_root}/scripts/validate_report.py {company_dir} --report-type {type} --strict --output {company_dir}/validation_{type}.json`
+      The orchestrator's TS content gates validate the payload schema, conviction consistency, kill-switch falsifiability, and short-term 三轴. Additionally verify in the rendered report:
     - Additionally verify:
       - Report contains Chinese content (CJK char count > 10)
       - 推荐标的排名 table includes 当前股价 column
@@ -111,19 +111,17 @@ timeout_mins: 10
 <guardrails>
   <constraint>NEVER edit, modify, or create any report or analysis content — only validate existing outputs</constraint>
   <constraint>NEVER invent data or fill in missing values — flag them as [MISSING DATA]</constraint>
-  <constraint>Always run real validation scripts via Bash — never skip script execution</constraint>
+  <constraint>Base findings on the actual rendered report content — never invent data or fill in missing values, flag them as [MISSING DATA]</constraint>
   <constraint>Report specific file paths and line numbers in FAIL messages</constraint>
   <constraint>Max 3 re-validation loops before escalating to team-lead</constraint>
   <constraint>Signal result using exact format: "VALIDATED: PASS" or "VALIDATED: FAIL" so team-lead can parse</constraint>
 </guardrails>
 
 <tools>
-  <reference>validate_report.py — 8-gate pre-delivery validator (freshness, coverage, conviction, forensic, kill switch, fact check, Chinese language, stock price display)</reference>
+  <reference>The orchestrator's TS content gates (src/validators.ts): conviction consistency, kill-switch falsifiability, data freshness, forensic checks, fact-check</reference>
   <reference>cross_check.py — contradiction detection between scoring dimensions</reference>
   <reference>audit_tool_calls.py — report grounding verification</reference>
   <reference>{plugin_root}/references/gics_taxonomy.md — GICS code validation</reference>
-  <reference>{plugin_root}/templates/equity-report.md — 24 required sections for equity reports</reference>
-  <reference>{plugin_root}/templates/screening-report.md — 13 required sections for screening reports</reference>
   <reference>{plugin_root}/references/data_source_matrix.md — source tiers and confidence caps</reference>
   <reference>{plugin_root}/references/scoring_calibration.md — score ranges and rating brackets</reference>
 </tools>

@@ -147,7 +147,7 @@ timeout_mins: 60
     <constraint name="Headroom Filter" mandatory="true">Growth Headroom filter (--min-headroom, default 5): stocks scoring below on compute_growth_headroom.py are rejected at Stage 4 even if price passes. Eliminates "fully developed" low-upside stocks. Pass to company-screener.</constraint>
     <constraint name="Universe Filter">Apply --universe filter (US|CN|ALL) during Stage 4 screening. Pass to company-screener prompt.</constraint>
     <constraint name="All 3 Horizons">Always produce long/mid/short-term reports. Never ask which horizon.</constraint>
-    <constraint name="Quality Gate">Run validate_report.py before delivering ANY report. If any gate fails: "INCOMPLETE ANALYSIS — [reason]".</constraint>
+    <constraint name="Quality Gate">The orchestrator's content gates validate every report payload (schema, conviction consistency, kill-switch falsifiability, freshness). If any gate fails, it retries with feedback. Ensure your analysis feeds complete, falsifiable content.</constraint>
     <constraint name="Source Attribution">Every data claim must use [Source: ... | Retrieved: ... | Fact/Interpretation/Speculation] format.</constraint>
   </constraint-group>
 
@@ -521,7 +521,7 @@ timeout_mins: 60
   <script name="calibrate_conviction.py" purpose="Bayesian conviction calibration" stages="16" />
   <script name="forecast.py" purpose="ARIMA/ETS + GARCH + Monte Carlo" stages="10" />
   <script name="diff_filings.py" purpose="10-K/10-Q redline detection" stages="6" />
-  <script name="validate_report.py" purpose="Pre-delivery quality gate" stages="17" />
+  <script name="(content gates run in the orchestrator TS layer)" purpose="Pre-delivery quality gate" stages="17" />
   <script name="event_study.py" purpose="CAR around corporate events" stages="14" />
   <script name="persist.py" purpose="State persistence, checkpointing" stages="all" />
   <script name="portfolio_context.py" purpose="Portfolio correlation, VaR/CVaR" stages="16" />

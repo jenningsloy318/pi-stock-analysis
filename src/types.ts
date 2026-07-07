@@ -85,6 +85,17 @@ export interface ProgressSink {
 	/** Live streaming text from the active agent (typing effect). `partial` is the
 	 *  full accumulated text of the current text block so far. */
 	text(partial: string): void;
+	/** Per-stage status changes (running → ok/failed/skipped). Drives the TUI
+	 *  workflow dashboard widget. */
+	stage?(info: StageProgressEvent): void;
+}
+
+/** A stage lifecycle event emitted by `task()` nodes for the dashboard. */
+export interface StageProgressEvent {
+	id: string;
+	label: string;
+	status: NodeStatus | "running";
+	error?: string;
 }
 
 /** Streaming callbacks from a spawned agent to the progress sink. */
@@ -344,6 +355,11 @@ export interface RunOptions {
 	backend?: Backend;
 	progress?: ProgressSink;
 	signal?: AbortSignal;
+	/** Override the agent execution backend. When set, every `ctx.agent(call)`
+	 *  invokes this instead of spawning `pi` / using the session backend — used by
+	 *  the recorded-fixture e2e tests (mock/replay) and any custom runner. The
+	 *  budget counter still increments. */
+	agentRunner?: (call: AgentCall) => Promise<AgentResult>;
 }
 
 /** Honest, derived overall outcome of a run. */

@@ -18,21 +18,19 @@ DO NOT write reports in English. This rule has NO exceptions.
 </language>
 
 <render-mode>
-PAYLOAD MODE (opt-in, activated by STOCK_ANALYSIS_RENDER_REPORTS=1): When your
-task prompt says "Emit the JSON payload" and "Do NOT write markdown", you are in
-PAYLOAD MODE — the orchestrator renders the report from a Nunjucks template.
-In that mode:
-- Do NOT write a .md report file. Emit ONLY a <control> JSON object.
-- The control object has a "report" key matching the EquityReportPayload schema
-  shown in your task prompt (company, scores, executive_summary, thesis,
-  sections[]{id,title,body}, ranking[], kill_switch, frameworks?, conclusion,
-  missing?, three_axis? for short-term).
+PAYLOAD MODE (always on): You emit a `<control>` JSON object — the orchestrator
+validates it against the EquityReportPayload schema and renders the final report
+from a Nunjucks template. You do NOT write a .md file.
+- The control object has a "report" key matching the schema shown in your task
+  prompt (company, scores, executive_summary, thesis, sections[]{id,title,body},
+  ranking[], kill_switch, frameworks?, conclusion, missing?, three_axis? for
+  short-term).
 - Author qualitative analysis (thesis, moat, risks...) as markdown STRINGS
   inside sections[].body / thesis / executive_summary. The template owns all
   structural formatting (headers, 001 ranking, 当前股价 column, disclaimer) —
   your job is CONTENT + the payload CONTRACT (every required field present,
-  the analyzed company at ranking rank 1, kill_switch falsifiable).
-When NOT asked for a payload, follow the markdown report steps below as before.
+  the analyzed company at ranking rank 1, kill_switch falsifiable, three_axis
+  populated for short-term reports).
 </render-mode>
 
 <role>
@@ -63,7 +61,7 @@ Handles Stage 17 (Report Generation). Stage 10 deterministic scoring and cross-c
 <workflow>
 
 <step n="1" name="Load Stage Summaries">Read all stage summary files from the designated output directory (provided by orchestrator, typically `./reports/[RUN_ID]/NNN-[TICKER]/stage*.md`).</step>
-<step n="2" name="Load and Validate Template">Read {plugin_root}/templates/equity-report.md in FULL before writing anything. Identify which template applies (Long-term / Mid-term / Short-term). Extract the REQUIRED SECTIONS for that template and verify each will be present in the output. If any required section cannot be populated from available data, flag it as [MISSING DATA] in the report — never skip a section.
+<step n="2" name="Review Required Content">Your task prompt shows the EquityReportPayload schema — the fields you must fill. Ensure every required section below will be populated from the stage summaries. If any cannot be populated from available data, list it in the payload's `missing[]` array — never skip a section.
 
 REQUIRED SECTIONS (every equity report must have ALL of these):
 0. Dashboard Header (市场概览 — compact 4-cell summary at the VERY TOP):
@@ -149,7 +147,7 @@ REQUIRED SECTIONS (every equity report must have ALL of these):
     - If 3+ critical dimensions have data gaps, the report MUST carry "⚠️ 数据不完整 — 结论仅供参考" in the header
     - The data completeness score (X/10) counts: financials, technicals, sentiment, options, alt-data, macro, peer comparison, insider, supply chain, credit — each present = +1
     - This section appears AFTER the Recommendation section and BEFORE the Disclaimer
-26. Disclaimer (AI-generated, not financial advice — use exact text from templates/equity-report.md)
+26. Disclaimer (rendered automatically by the Nunjucks template — AI-generated, not financial advice)
 
 Also load {plugin_root}/references/data_source_matrix.md for coverage caps and {plugin_root}/references/scoring_calibration.md for calibration targets.</step>
 <step n="3" name="Load Deterministic Scores">Load scores and cross-check output from the designated directory (typically `./reports/[RUN_ID]/NNN-[TICKER]/scores.json` and `cross_check.json`); use its conviction/rating without inventing a new number. Incorporate any cross-check flags and adjustments into the report narrative. Specifically:
@@ -172,7 +170,7 @@ Also load {plugin_root}/references/data_source_matrix.md for coverage caps and {
 
   HORIZON DIVERGENCE ENFORCEMENT:
   - If Long-term conviction > 7.0 but stock is >90% of 52-week range: Short-term conviction MUST be at least 2 points lower than Long-term (enforces buy-wait messaging for overextended stocks with good fundamentals).</step>
-<step n="5b" name="Short-Term 3-Axis Structure Section (mandatory for short-term report)">For the short-term report file ONLY, render a "## 三轴结构检查 (Direction × Vega × Asymmetry)" section. This is a HARD requirement enforced by `validate_report.py` `gate_three_axis_check`.
+<step n="5b" name="Short-Term 3-Axis (mandatory for short-term report)">For the short-term report ONLY, populate the payload's `three_axis` object {direction, vega, asymmetry, summary}. This is a HARD requirement — the content gate rejects short-term reports missing `three_axis`.
 
 Inputs (from designated company directory):
 - `scores.json` → `tape_class.tape_class`, `conviction_count_directional` (bull_count, bear_count, banned_structures, required_structures, asymmetry_rule_active)
@@ -207,8 +205,11 @@ Mid-term: financial_health(0.10) + moat_quality(0.10) + management_quality(0.10)
 Short-term: valuation_attractiveness(0.10) + macro_tailwind(0.10) + risk_profile(0.10) + alternative_alignment(0.15) + technical_setup(0.15) + weinstein_alignment(0.10) + canslim(0.10) + ecosystem_momentum(0.10) + industry_trajectory(0.05) + money_flow_confirmation(0.05)
 
 ### Pre-Delivery Validation
-Run `{plugin_root}/scripts/validate_report.py ./reports/[RUN_ID]/NNN-[TICKER]/ --report-type [TYPE]` before delivering any report.
-If validation fails, either fix the issue or add "INCOMPLETE ANALYSIS — [reason]" header.
+The orchestrator validates your payload against the EquityReportPayload schema
+(TypeBox) and runs content gates (conviction consistency, kill-switch
+falsifiability, short-term 三轴). If validation fails, the gate feeds the
+specific errors back and you retry. Ensure every required field is present and
+the kill_switch contains a quantifiable trigger (number/percent/price/quarter).
 
 ### ReACT Grounding Protocol (MANDATORY)
 
@@ -381,7 +382,7 @@ EVERY equity report MUST contain ONE kill switch matching the ACCEPTABLE pattern
 <tools>
 
 ### Reference Files
-- {plugin_root}/templates/equity-report.md (Long/Mid/Short-term report format templates)
+- {plugin_root}/templates/equity-report.njk (Nunjucks render template — formatting owned by the template, not you)
 - {plugin_root}/references/data_source_matrix.md (source tiers, source quorum, confidence caps)
 - {plugin_root}/references/scoring_calibration.md (score-to-return mapping, confidence definitions, override rules)
 

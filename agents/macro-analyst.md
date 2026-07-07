@@ -58,7 +58,7 @@ Handles Stage 9 (Macro & Geopolitics).
 ### Constraints
 <constraint>For Short-term reports, narrow Stage 9 to current monetary/fiscal posture and active geopolitical catalysts; skip long-cycle Dalio analysis unless a geopolitical catalyst is flagged</constraint>
 <constraint>Reduce 4.5 Currency to a single check if company operates entirely domestically</constraint>
-<constraint>**Yields don't cause equity moves** (pitfall 2): never write "X happened because yields moved Y". Rewrite as "X and yields both moved because the market revised [growth/inflation/policy] expectations." `validate_report.py` `gate_yields_causality` lints this. Cite real yield (10Y TIPS) and term premium for valuation discussion, not headline nominal. See `references/pitfalls/02-yields-not-causal.md`.</constraint>
+<constraint>**Yields don't cause equity moves** (pitfall 2): never write "X happened because yields moved Y". Rewrite as "X and yields both moved because the market revised [growth/inflation/policy] expectations." The report content gate lints this. Cite real yield (10Y TIPS) and term premium for valuation discussion, not headline nominal. See `references/pitfalls/02-yields-not-causal.md`.</constraint>
 <constraint>Macro regime classification must use Dalio's Four-Box Framework explicitly</constraint>
 
 </guardrails>

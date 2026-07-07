@@ -4,7 +4,7 @@
  * the node algebra (`nodes.ts`); this file only wires execution primitives.
  *
  *   ctx.agent()    — spawn a specialist `pi` subprocess or in-process session
- *   ctx.helper()   — run a deterministic pure helper (helpers.ts)
+ *   ctx.helper()   — run a deterministic pure helper (gates.ts dispatch)
  *   ctx.script()   — run a verbatim python script via uv (scripts.ts)
  *   ctx.parallel() — run async fns with a concurrency cap
  *   ctx.budget()   — cap total agent spawns
@@ -14,7 +14,7 @@
 import { EventEmitter } from "node:events";
 import { spawnAgent } from "./pi-spawn.ts";
 import { runAgentViaSession } from "./session-agent.ts";
-import { runHelper } from "./helpers.ts";
+import { runHelper } from "./gates.ts";
 import { runScriptCall } from "./scripts.ts";
 import { extractControlKeys } from "./control.ts";
 import type {
@@ -31,6 +31,7 @@ import type {
 	RunStatus,
 	RunSummary,
 	StageContext,
+	StageProgressEvent,
 	ProgressSink,
 } from "./types.ts";
 
@@ -71,6 +72,12 @@ export function makeContext(opts: MakeContextOptions): StageContext {
 
 	async function agent(call: AgentCall): Promise<AgentResult> {
 		budget.spent();
+		// Mock/replay hook: if an agentRunner override is set (e2e tests), use it
+		// instead of the real backend. The budget still increments so agentsSpawned
+		// stays honest.
+		if (options.agentRunner) {
+			return options.agentRunner(call);
+		}
 		const agentCwd = options.cwd ?? process.cwd();
 		// Gate feedback convergence: if a gate rejected a prior attempt, it stored
 		// structured errors under state.__feedback[stageId]. Prepend them so the
@@ -155,6 +162,7 @@ export async function runWorkflow(
 
 	if (progress) {
 		ctx.events.on("phase", (label: unknown) => progress.phase(String(label)));
+		ctx.events.on("stage", (info: unknown) => progress.stage?.(info as StageProgressEvent));
 	}
 
 	let aborted = false;

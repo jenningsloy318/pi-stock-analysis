@@ -32,10 +32,11 @@ import { isAshTicker } from "../helpers.ts";
 import {
 	stagePrompt, dataCollectorBody, sectorScreenerBody, companyScreenerBody,
 	roadmapWalkerBody, perCompanyAnalystBody, scorerBody, adversarialBody,
-	judgePanelBody, reportWriterBody, bestPicksBody, reportPayloadBody, screeningReportPayloadBody, bestPicksPayloadBody,
+	judgePanelBody, reportPayloadBody, screeningReportPayloadBody, bestPicksPayloadBody,
 } from "../prompts.ts";
 import { ensurePythonEnv } from "../scripts.ts";
 import { renderDocTask, renderReportsTask, renderScreeningReportsTask } from "../render-node.ts";
+import { sweepIntermediateFiles } from "../cleanup.ts";
 import { EquityReportPayload, ScreeningReportPayload, BestPicksPayload } from "../render-schemas.ts";
 
 // ─── Predicates ─────────────────────────────────────────────────────────────
@@ -211,18 +212,9 @@ const judgePanelStage: Node = retry(
 
 // ─── Reports + critic (17 / 17.4) ───────────────────────────────────────────
 
-const reportWriterStage = writerTask({
-	id: "stage-17",
-	label: "Stage 17 — Report Generation",
-	agent: "equity-report-writer",
-	controlKeys: ["reports"],
-	buildPrompt: (s) => stagePrompt(s, "stage-17", reportWriterBody(s.mode, s), { controlKeys: ["reports"] }),
-});
-
-/** Stage 17 (opt-in rendered path) — one schema-validated payload → template
- *  render per company × horizon (templates/equity-report.njk). Activated by
- *  STOCK_ANALYSIS_RENDER_REPORTS=1; otherwise the markdown writerTask runs.
- *  Zero-risk rollout: default unchanged. */
+/** Stage 17 — one schema-validated payload → template render per company ×
+ *  horizon (templates/equity-report.njk). The agent emits content; the template
+ *  owns all formatting. */
 const renderReportsStage = renderReportsTask({
 	id: "stage-17",
 	label: "Stage 17 — Report Generation (rendered)",
@@ -268,15 +260,7 @@ const completenessCriticStage: Node = map(
 
 // ─── Best picks + cleanup (18 / 19) ────────────────────────────────────────
 
-const bestPicksStage = writerTask({
-	id: "stage-18",
-	label: "Stage 18 — Best Picks Highlight",
-	agent: "equity-report-writer",
-	controlKeys: ["bestPicks"],
-	buildPrompt: (s) => stagePrompt(s, "stage-18", bestPicksBody(s), { controlKeys: ["bestPicks"] }),
-});
-
-/** Stage 18 (rendered) — HIGHLIGHTS_BEST_PICKS.md from a BestPicksPayload via
+/** Stage 18 — HIGHLIGHTS_BEST_PICKS.md from a BestPicksPayload via
  *  templates/best-picks.njk. */
 const bestPicksRenderStage = task(renderDocTask({
 	id: "stage-18",
@@ -290,23 +274,23 @@ const bestPicksRenderStage = task(renderDocTask({
 	buildPrompt: (s) => stagePrompt(s, "stage-18", bestPicksPayloadBody(s), { controlKeys: ["bestPicks"] }),
 }));
 
-/** Stage 19 — Cleanup (ALWAYS last). Removes intermediate files; keeps tracking +
- *  final reports + HIGHLIGHTS_BEST_PICKS.md. */
+/** Stage 19 — Cleanup (ALWAYS last). Deterministic allow-list sweep: deletes
+ *  intermediate artifacts (stage_*, phase_*, raw-data_*) from state.reportsDir,
+ *  preserves final reports + HIGHLIGHTS_BEST_PICKS.md + workflow-tracking.json. */
 const cleanupStage = task({
 	id: "stage-19",
 	label: "Stage 19 — Cleanup",
-	async run(_s, ctx) {
-		ctx.log("Cleanup: removing intermediate files (stage*.md, raw-data.json, phase*.md)");
-		// Actual file deletion is done by the equity-report-writer / team-lead agent
-		// writing to the reports dir; the TS layer just records the phase. This
-		// keeps the pipeline deterministic and testable without filesystem mutation.
-		return { cleanup: "recorded" };
+	async run(s, ctx) {
+		const keepPaths = (s.reports ?? []).map((r) => r.path);
+		const { removed } = sweepIntermediateFiles(s.reportsDir, keepPaths);
+		ctx.log(`Cleanup: removed ${removed.length} intermediate file(s) from ${s.reportsDir}`);
+		return { cleanup: "done", removed: removed.length };
 	},
 });
 
 // ─── Quality gates (1.5 / 4.5 / 16.5 / 17.5 / 18.5) ─────────────────────────
 // Each gate re-runs its writer up to `attempts` until the validator passes; on
-// exhaustion it logs + continues (non-fatal). Validators live in helpers.ts and
+// exhaustion it logs + continues (non-fatal). Validators live in gates.ts and
 // are non-vacuous (no output ⇒ FAIL, never a silent pass).
 
 const gateSharedData = gate(
@@ -326,25 +310,18 @@ const gateScoring = gate(
 
 const gateReports = gate(
 	{ validate: gateValidator("gate-reports", "stage-17"), attempts: 4, feedbackKey: "reports" },
-	// Default ON (opt-out via STOCK_ANALYSIS_RENDER_REPORTS=0): render path →
-	// schema-validated, template-rendered reports. screen mode → one sector
-	// report per horizon; other modes → per-company equity reports. =0 → the
-	// proven markdown writerTask.
+	// Render path only: schema-validated, template-rendered reports. screen
+	// mode → one sector report per horizon; other modes → per-company equity
+	// reports (one per horizon).
 	choose(
-		[
-			{ when: (s) => process.env.STOCK_ANALYSIS_RENDER_REPORTS !== "0" && s.mode === "screen", run: task(screenReportsRenderStage) },
-			{ when: (s) => process.env.STOCK_ANALYSIS_RENDER_REPORTS !== "0", run: task(renderReportsStage) },
-		],
-		task(reportWriterStage),
+		[{ when: (s) => s.mode === "screen", run: task(screenReportsRenderStage) }],
+		task(renderReportsStage),
 	),
 );
 
 const gateBestPicks = gate(
 	{ validate: gateValidator("gate-best-picks", "stage-18"), attempts: 4, feedbackKey: "bestPicks" },
-	branch(
-		() => process.env.STOCK_ANALYSIS_RENDER_REPORTS !== "0",
-		{ yes: bestPicksRenderStage, no: task(bestPicksStage) },
-	),
+	bestPicksRenderStage,
 );
 
 // ─── The common tail: critic → report-validation-gate → best-picks-gate → cleanup ─

@@ -43,7 +43,7 @@ Handles Phase 4 (Report Generation).
 
 <workflow>
 
-<step n="0" name="Load and Validate Template">Read {plugin_root}/templates/screening-report.md in FULL before writing anything. Identify which template applies (Broad / Focused / Thematic). Extract the REQUIRED SECTIONS list below and verify each will be present in the output. If any required section cannot be populated from available data, flag it as [MISSING DATA] in the report — never skip a section.
+<step n="0" name="Review Required Content">Your task prompt shows the ScreeningReportPayload schema — the fields you must fill. Ensure every required section below will be populated. If any cannot be populated from available data, list it in the payload's `missing[]` array — never skip a section.
 
 REQUIRED SECTIONS (every screening report must have ALL of these):
 0. Dashboard Header (市场概览仪表盘 — 4-quadrant summary card at the VERY TOP of every report):
@@ -197,7 +197,7 @@ Also load {plugin_root}/references/gics_taxonomy.md for code validation and {plu
   - Methodology weights stated
   - Kill switch conditions defined</step>
 <step n="6" name="Fact Verification">Select 3 random data claims from the report, trace back to phase summary source. If any claim is unverifiable, remove it and flag the gap.</step>
-<step n="7" name="Write Reports">For EACH horizon (long-term, mid-term, short-term), apply the corresponding weighting scheme from `{plugin_root}/templates/screening-report.md` and write a separate report:
+<step n="7" name="Emit Payloads">For EACH horizon (long-term, mid-term, short-term), apply the corresponding weighting scheme from the REQUIRED SECTIONS list below and emit a ScreeningReportPayload:
   - `./reports/[RUN_ID]/[NNN]-[SUB_INDUSTRY_CODE]_long_[YYYY-MM-DD].md`
   - `./reports/[RUN_ID]/[NNN]-[SUB_INDUSTRY_CODE]_mid_[YYYY-MM-DD].md`
   - `./reports/[RUN_ID]/[NNN]-[SUB_INDUSTRY_CODE]_short_[YYYY-MM-DD].md`
@@ -238,7 +238,7 @@ Also load {plugin_root}/references/gics_taxonomy.md for code validation and {plu
 <tools>
 
 ### Reference Files
-- {plugin_root}/templates/screening-report.md (Broad/Single Sector/Thematic report formats, funnel scoring formulas, watchlist rating anchors)
+- {plugin_root}/templates/screening-report.njk (Nunjucks render template — formatting owned by the template)
 - {plugin_root}/references/gics_taxonomy.md (complete GICS 4-level hierarchy, sub-industry codes, ETF proxies)
 - {plugin_root}/references/data_source_matrix.md (source tiers, sector add-ons, confidence caps)
 

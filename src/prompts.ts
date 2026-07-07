@@ -178,28 +178,8 @@ export function judgePanelBody(_state: StockAnalysisState): string {
 	return "4 investment-framework lenses (Buffett / Lynch / Marks / Druckenmiller), each rates 0-10 with verdict + explicit disagreement points. Identify the top 1-2 framework disagreements per company as the real investment decision points.";
 }
 
-export function reportWriterBody(mode: string, _state: StockAnalysisState): string {
-	const map: Record<string, string> = {
-		pipeline: "Screening overview (3 horizons) + per-company deep-dives (3 horizons each). Fold in bear-case verdicts and panel consensus as 对手方观点 and 多框架交叉验证 sections.",
-		screen: "Screening reports only (3 horizons).",
-		analyze: "Per-company reports only (3 horizons each).",
-		compare: "Comparison reports with ranked table. Identical valuation methodology across all.",
-		walk: "Walk report + per-candidate deep-dives (3 horizons each).",
-	};
-	return map[mode] ?? "Produce the reports appropriate to the mode (3 horizons each).";
-}
-
-export function bestPicksBody(_state: StockAnalysisState): string {
-	return [
-		"Write HIGHLIGHTS_BEST_PICKS.md grouping picks by position type (core/satellite/tactical) from judge_panel.json.",
-		"Sections: 核心仓位推荐, 成长卫星推荐, 期权投机推荐. Per-company: rank, ticker, name, 当前股价, composite, conviction, 2-sentence thesis, kill switch, catalyst, 框架共识, 对手方验证.",
-		"End with 组合互补性检查 (industry concentration + style homogeneity). ⚠️ caution notes for flagged picks.",
-	].join("\n");
-}
-
 // ─── Rendered-report payload prompt (one company × one horizon) ─────────────
-// Used by renderReportsTask (opt-in via STOCK_ANALYSIS_RENDER_REPORTS=1). The
-// agent emits a typed JSON payload; the Nunjucks template owns all formatting.
+// The agent emits a typed JSON payload; the Nunjucks template owns all formatting.
 
 export function reportPayloadBody(company: Company, horizon: "long" | "mid" | "short"): string {
 	const score = typeof company.score === "number" ? `${company.score}/10` : "(unscored)";

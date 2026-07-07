@@ -44,9 +44,9 @@ import type {
 	ControlObj,
 } from "./types.ts";
 
-// Real helper dispatcher (helpers.ts SYNC map). Used by runHelperStub so gates
-// resolve the gate-* validators in production instead of the empty registry.
-import { runHelper as dispatchHelper } from "./helpers.ts";
+// Real gate dispatcher (gates.ts GATE_DISPATCH map). Used by runHelperStub so
+// gates resolve the gate-* validators in production instead of the empty registry.
+import { runHelper as dispatchHelper } from "./gates.ts";
 
 // ─── Shared helper types ────────────────────────────────────────────────────
 
@@ -98,8 +98,10 @@ const cancelled = (): NodeResult => ({ status: "cancelled" });
 
 /** Lift a `Stage` into a leaf node. Stores the return value under `state[id]`. */
 export function task(stage: Stage): Node {
-	const record = (ctx: StageContext, status: NodeStatus, error?: string) =>
+	const record = (ctx: StageContext, status: NodeStatus, error?: string) => {
 		ctx.results.push({ id: stage.id, label: stage.label, status, error });
+		ctx.events.emit("stage", { id: stage.id, label: stage.label, status, error });
+	};
 	return {
 		kind: "task",
 		label: stage.label,
@@ -117,6 +119,7 @@ export function task(stage: Stage): Node {
 			}
 			try {
 				ctx.events.emit("phase", stage.label);
+				ctx.events.emit("stage", { id: stage.id, label: stage.label, status: "running" });
 				const result = await stage.run(state, ctx);
 				if (result !== undefined && result !== null) state[stage.id] = result;
 				record(ctx, "ok");
@@ -561,7 +564,7 @@ async function runHelperStub(name: string, sources: Record<string, unknown>): Pr
 	// Test-injected fakes (registerHelper) take precedence — preserves the seam.
 	const fn = HELPER_REGISTRY[name];
 	if (fn) return fn(sources);
-	// Production path: delegate to the real helper dispatcher (helpers.ts SYNC).
+	// Production path: delegate to the real gate dispatcher (gates.ts GATE_DISPATCH).
 	// Without this the registry stayed empty and EVERY gate returned
 	// "unknown helper: ...", exhausting all gates (the 2026-07-05 screen bug).
 	return dispatchHelper({ name, sources });
