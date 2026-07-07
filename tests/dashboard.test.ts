@@ -45,18 +45,15 @@ describe("packDashboardLines", () => {
 		expect(lines.some((l) => l.startsWith("▶"))).toBe(false);
 	});
 
-	it("packs stages into columns based on width", () => {
+	it("lists stages one per line (single column)", () => {
 		const entries = Array.from({ length: 10 }, (_, i) => E(`s${i}`, `Stage ${i}`, "ok"));
-		const wide = packDashboardLines(entries, undefined, 200);
-		const narrow = packDashboardLines(entries, undefined, 40);
-		// Wide terminal fits more columns → fewer rows of stages.
-		const wideStageRows = wide.filter((l) => l.startsWith("  ")).length;
-		const narrowStageRows = narrow.filter((l) => l.startsWith("  ")).length;
-		expect(wideStageRows).toBeLessThan(narrowStageRows);
-		// All 10 stages appear in both.
+		const lines = packDashboardLines(entries, undefined, 200);
+		// Each stage is on its own line (no column packing).
+		const stageLines = lines.filter((l) => /^  [✔●⚠↷·]/.test(l));
+		expect(stageLines.length).toBe(10);
+		// All 10 stages present.
 		for (let i = 0; i < 10; i++) {
-			expect(wide.some((l) => l.includes(`Stage ${i}`))).toBe(true);
-			expect(narrow.some((l) => l.includes(`Stage ${i}`))).toBe(true);
+			expect(lines.some((l) => l.includes(`Stage ${i}`))).toBe(true);
 		}
 	});
 });

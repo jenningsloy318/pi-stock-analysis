@@ -192,7 +192,6 @@ function runPi(args: string[], cwd: string, signal: AbortSignal | undefined, lab
 				} else {
 					if (currentText.trim()) { onProgress.event(stripControl(currentText).trim()); currentText = ""; }
 					if (se.kind === "tool") onProgress.event(`→ ${se.summary}`);
-					else if (se.kind === "turn" && se.n > 1) onProgress.event(`turn ${se.n}`);
 				}
 			}
 			if (lineBuf.length > LINE_CAP) lineBuf = "";

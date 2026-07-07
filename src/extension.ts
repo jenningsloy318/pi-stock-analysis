@@ -184,12 +184,11 @@ export function padTruncate(s: string, w: number): string {
 	return s.length >= w ? `${s.slice(0, Math.max(1, w - 1))}…` : s + " ".repeat(w - s.length);
 }
 
-/** Pack stage entries into a column layout for the dashboard widget.
- *  Pure/testable: Pi calls render(width) with the real terminal width, so all
- *  stages fit into columns (no summary/drop). Header shows done/total + the
- *  current running stage; one activity line shows what's happening now.
- *  Detailed logs stay in the streaming output (onUpdate), NOT here. */
-export function packDashboardLines(entries: Array<{ id: string; label: string; status: string }>, activity: string | undefined, width: number): string[] {
+/** List stage entries as a single-column dashboard for the widget.
+ *  Pure/testable. Header shows done/total + the current running stage; one
+ *  activity line shows what's happening now. Detailed logs stay in the
+ *  streaming output (onUpdate), NOT here. */
+export function packDashboardLines(entries: Array<{ id: string; label: string; status: string }>, activity: string | undefined, _width: number): string[] {
 	const icon = (st: string) => (st === "ok" ? "✔" : st === "failed" ? "⚠" : st === "skipped" ? "↷" : st === "running" ? "●" : "·");
 	const done = entries.filter((e) => e.status !== "running").length;
 	const running = entries.find((e) => e.status === "running");
@@ -197,11 +196,8 @@ export function packDashboardLines(entries: Array<{ id: string; label: string; s
 	const lines = [head];
 	const a = truncateActivity(activity ?? "");
 	if (a) lines.push(`▶ ${a}`);
-	const CELL = 36;
-	const cols = Math.max(1, Math.floor(Math.max(20, width - 2) / CELL));
-	const cell = (e: { label: string; status: string }) => padTruncate(`${icon(e.status)} ${e.label}`, CELL - 2);
-	for (let i = 0; i < entries.length; i += cols) {
-		lines.push("  " + entries.slice(i, i + cols).map(cell).join(""));
+	for (const e of entries) {
+		lines.push(`  ${icon(e.status)} ${e.label}`);
 	}
 	return lines;
 }
