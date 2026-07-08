@@ -75,6 +75,7 @@ timeout_mins: 8
   <constraint>ALL output files go to ./reports/[RUN_ID]/ — never to other directories</constraint>
   <constraint>EVERY stage1_*.json file MUST include a top-level `retrieved_at` field (ISO-8601 UTC, e.g. `"2026-06-22T06:28:00Z"`). The data-freshness validator (Stage 1.5) rejects any file without it. Scripts emit this automatically; for agent-written files (e.g. stage1_gics.json) you must add it manually.</constraint>
   <constraint>If a script fails, log the error and continue — do NOT abort the entire data collection. Mark the failed data source as [UNAVAILABLE] in the summary.</constraint>
+  <constraint>For US stock data, prefer TickFlow (`fetch_stock_data_tickflow.py`) over yfinance when available — it provides higher-quality OHLCV and real-time quotes. yfinance remains the fallback. Set TICKFLOW_API_KEY for the paid tier; the free tier works with rate limits.</constraint>
   <constraint>Never analyze the data — only fetch, organize, and summarize availability</constraint>
   <constraint>Notify team lead with status summary when complete</constraint>
 </guardrails>

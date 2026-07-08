@@ -1435,12 +1435,14 @@ def main():
                 dates, opens, highs, lows, closes, volumes = ohlcv
                 source_label = "akshare_baostock"
             else:
-                # US/global path: yfinance
-                stock = yf.Ticker(ticker)
-                hist = stock.history(period=args.period, interval=args.interval)
+                # US/global path: TickFlow first (higher quality), yfinance fallback.
+                from _tickflow_compat import fetch_ohlcv_with_fallback
 
-                if hist.empty:
-                    results[ticker] = {"error": f"No price data for {ticker}"}
+                hist = fetch_ohlcv_with_fallback(ticker, count=300, yf_period=args.period)
+                source_label = "tickflow" if hist is not None else "yfinance"
+
+                if hist is None or hist.empty:
+                    results[ticker] = {"error": f"No price data for {ticker} (tried tickflow + yfinance)"}
                     continue
 
                 dates = hist.index.tolist()
