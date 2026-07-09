@@ -46,6 +46,7 @@ def _fetch_10y_yield() -> float:
     Falls back to 0.043 (a long-run-average proxy) if the live fetch fails."""
     try:
         import yfinance as yf
+        import _yfinance_patch  # noqa: F401  # TickFlow OHLCV patch
 
         tnx = yf.Ticker("^TNX").history(period="5d")
         if tnx is not None and not tnx.empty:

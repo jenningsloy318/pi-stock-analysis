@@ -617,6 +617,7 @@ def fetch_from_yfinance(ticker: str, years: int) -> dict | None:
     """Fetch from Yahoo Finance via yfinance library. Free, no API key needed."""
     try:
         import yfinance as yf
+        import _yfinance_patch  # noqa: F401  # TickFlow OHLCV patch
     except ImportError:
         sys.stderr.write("yfinance not installed. Install: pip install yfinance\n")
         return None

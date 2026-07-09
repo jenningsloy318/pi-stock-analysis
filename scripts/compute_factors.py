@@ -34,6 +34,7 @@ from typing import Any
 try:
     import numpy as np
     import yfinance as yf
+    import _yfinance_patch  # noqa: F401  # TickFlow OHLCV patch
     import pandas as pd
 except ImportError:
     sys.stderr.write("Error: numpy, yfinance, and pandas required. Run: pip install numpy yfinance pandas\n")

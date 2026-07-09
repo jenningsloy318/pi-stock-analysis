@@ -25,6 +25,7 @@ from datetime import datetime, timezone
 try:
     import numpy as np
     import yfinance as yf
+    import _yfinance_patch  # noqa: F401  # TickFlow OHLCV patch
     from scipy import stats as scipy_stats
 except ImportError:
     sys.stderr.write("Error: numpy, scipy, and yfinance required.\n")

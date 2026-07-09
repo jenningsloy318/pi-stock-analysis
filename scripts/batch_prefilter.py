@@ -42,6 +42,7 @@ except ImportError:
 
 try:
     import yfinance as yf
+    import _yfinance_patch  # noqa: F401  # TickFlow OHLCV patch
 
     _YFINANCE_AVAILABLE = True
 except ImportError:

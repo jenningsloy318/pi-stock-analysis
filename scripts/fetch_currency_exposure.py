@@ -30,6 +30,7 @@ import numpy as np
 
 try:
     import yfinance as yf
+    import _yfinance_patch  # noqa: F401  # TickFlow OHLCV patch
 
     YF_AVAILABLE = True
 except ImportError:

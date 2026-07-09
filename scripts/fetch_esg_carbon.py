@@ -1096,6 +1096,7 @@ def main() -> None:
     # Fetch yfinance data
     try:
         import yfinance as yf
+        import _yfinance_patch  # noqa: F401  # TickFlow OHLCV patch
     except ImportError:
         sys.stderr.write("Error: yfinance not installed. Run: pip install yfinance\n")
         sys.exit(1)

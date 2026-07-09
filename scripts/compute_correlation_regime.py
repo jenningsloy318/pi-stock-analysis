@@ -24,6 +24,7 @@ from datetime import datetime, timezone
 
 try:
     import yfinance as yf
+    import _yfinance_patch  # noqa: F401  # TickFlow OHLCV patch
     import numpy as np
 except ImportError:
     sys.stderr.write(

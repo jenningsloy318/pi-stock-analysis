@@ -169,6 +169,7 @@ def fetch_yfinance_price(ticker: str) -> float | None:
     """Fetch stock price via yfinance fast_info."""
     try:
         import yfinance as yf
+        import _yfinance_patch  # noqa: F401  # TickFlow OHLCV patch
 
         # yfinance uses .SS for Shanghai stocks, not .SH
         yf_ticker = (

@@ -36,6 +36,7 @@ from datetime import datetime, timezone
 
 try:
     import yfinance as yf
+    import _yfinance_patch  # noqa: F401  # TickFlow OHLCV patch
     import numpy as np
     import pandas as pd
 except ImportError:

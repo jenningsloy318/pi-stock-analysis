@@ -90,9 +90,9 @@ describe("verbatim assets present", () => {
 		const agents = readdirSync(join(ROOT, "agents")).filter((f) => f.endsWith(".md"));
 		expect(agents.length).toBeGreaterThanOrEqual(22);
 	});
-	it("ships the 77 python scripts", () => {
+	it("ships the 79 python scripts", () => {
 		const scripts = readdirSync(join(ROOT, "scripts")).filter((f) => f.endsWith(".py"));
-		expect(scripts.length).toBe(77);
+		expect(scripts.length).toBe(79);
 	});
 	it("ships ≥ 16 schemas", () => {
 		const schemas = readdirSync(join(ROOT, "schemas")).filter((f) => f.endsWith(".json"));

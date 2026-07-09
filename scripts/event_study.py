@@ -28,6 +28,7 @@ from typing import Any
 try:
     import numpy as np
     import yfinance as yf
+    import _yfinance_patch  # noqa: F401  # TickFlow OHLCV patch
 except ImportError:
     sys.stderr.write("Error: numpy and yfinance required. Run: pip install numpy yfinance\n")
     sys.exit(1)

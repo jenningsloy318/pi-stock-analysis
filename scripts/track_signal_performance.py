@@ -29,6 +29,7 @@ from datetime import datetime, timezone, timedelta
 
 try:
     import yfinance as yf
+    import _yfinance_patch  # noqa: F401  # TickFlow OHLCV patch
 except ImportError:
     sys.stderr.write("Error: 'yfinance' package required. Run: pip install yfinance\n")
     sys.exit(1)
